@@ -51,8 +51,8 @@ public class KeepAliveTest extends KryoNetTestCase {
 
 
         sleep(2000);
-        server.close();
         client.close();
+        server.close();
     }
 
 }

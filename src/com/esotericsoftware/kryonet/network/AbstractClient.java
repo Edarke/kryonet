@@ -22,13 +22,10 @@ package com.esotericsoftware.kryonet.network;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryonet.adapters.Listener;
 import com.esotericsoftware.kryonet.network.impl.Server;
-import com.esotericsoftware.kryonet.network.messages.FrameworkMessage;
+import com.esotericsoftware.kryonet.network.messages.*;
 import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.DiscoverHost;
 import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.RegisterTCP;
 import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.RegisterUDP;
-import com.esotericsoftware.kryonet.network.messages.MessageToServer;
-import com.esotericsoftware.kryonet.network.messages.QueryToClient;
-import com.esotericsoftware.kryonet.network.messages.QueryToServer;
 import com.esotericsoftware.kryonet.serializers.KryoSerialization;
 import com.esotericsoftware.kryonet.serializers.Serialization;
 import com.esotericsoftware.kryonet.util.KryoNetException;
@@ -307,8 +304,8 @@ public abstract class AbstractClient<T extends ServerConnection> extends EndPoin
 
 		if(msg instanceof QueryToClient){
 			((Query) msg).setOrigin(connection);
-		} else if (msg instanceof QueryToServer){
-			connection.accept((QueryToServer<?>) msg);
+		} else if (msg instanceof Response){
+			connection.accept((Response) msg);
 			return;
 		}
 

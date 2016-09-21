@@ -20,16 +20,17 @@ public class CachedMessageFactory {
         buffer = ByteBuffer.allocate(maxBufferSize);
     }
 
+    /** Create a pre-serialized form of a message in a type safe wrapper.
+     * Any time you want to send a message of type T, you can send a CachedMessage<T>
+     * without the overhead of serialization*/
     public synchronized <T extends Message> CachedMessage<T> create(T msg){
         buffer.clear();
         serializer.write(buffer, msg);
         ByteBuffer cache = ByteBuffer.allocateDirect(buffer.position()+1);
-
 
         buffer.flip();
         cache.put(buffer);
         cache.flip();
         return new CachedMessage<>(cache, msg.isReliable());
     }
-
 }

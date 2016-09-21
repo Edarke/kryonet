@@ -29,16 +29,14 @@ public interface Listener<T extends Connection> {
 	 * This will be invoked on the same thread as {@link AbstractClient#update(int)} and
 	 * {@link Server#update(int)}. This method should not block for long periods as other network activity will not be processed
 	 * until it returns. */
-	void onConnected(T connection) ;
+	void onConnected(T connection);
 
 	/** Called when the remote end is no longer onConnected. There is no guarantee as to what thread will invoke this method. */
-	void onDisconnected(T connection) ;
+	void onDisconnected(T connection);
 
 	/** Called when the connection is below the {@link Connection#setIdleThreshold(float) onIdle threshold}. */
-	void onIdle(T connection) ;
+	void onIdle(T connection);
 
 	void received(T connection, Object msg);
-
-
 
 }

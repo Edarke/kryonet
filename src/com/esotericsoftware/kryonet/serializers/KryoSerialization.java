@@ -22,6 +22,7 @@ package com.esotericsoftware.kryonet.serializers;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.ByteBufferInput;
 import com.esotericsoftware.kryo.io.ByteBufferOutput;
+import com.esotericsoftware.kryonet.network.Response;
 import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.*;
 
 import java.nio.ByteBuffer;
@@ -45,6 +46,7 @@ public class KryoSerialization implements Serialization {
 		kryo.register(KeepAlive.class);
 		kryo.register(DiscoverHost.class);
 		kryo.register(Ping.class);
+		kryo.register(Response.class);
 
 		input = new ByteBufferInput();
 		output = new ByteBufferOutput();

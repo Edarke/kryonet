@@ -47,7 +47,7 @@ class TcpConnection {
 	int timeoutMillis = 12000;
 	float idleThreshold = 0.1f;
 
-	final Serialization serialization;
+	private final Serialization serialization;
 	private SelectionKey selectionKey;
 	private volatile long lastWriteTime, lastReadTime;
 	private int currentObjectLength;

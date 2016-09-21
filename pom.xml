@@ -12,9 +12,9 @@
     <version>1.0b</version>
     <packaging>jar</packaging>
 
-    <name>kryonet</name>
+    <name>kryoms</name>
     <description>TCP and UDP client/server library for Java</description>
-    <url>https://github.com/EsotericSoftware/kryonet</url>
+    <url>https://github.com/edarke/kryonet</url>
 
     <licenses>
         <license>
@@ -50,8 +50,27 @@
                     <target>1.8</target>
                 </configuration>
             </plugin>
+
+
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+            </plugin>
         </plugins>
-    
+
+
         <!-- Set nonstandard source and test source dirs -->
         <sourceDirectory>src</sourceDirectory>
         <testSourceDirectory>test</testSourceDirectory>

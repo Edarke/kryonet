@@ -37,6 +37,7 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
@@ -48,9 +49,7 @@ import static com.esotericsoftware.minlog.Log.*;
  * is closed or errors, both connections are closed.
  * @author Nathan Sweet <misc@n4te.com> */
 public class Connection<MSG extends Message> {
-	protected static final ConcurrentHashMap<Query<?,?>, Consumer<?>> queries = new ConcurrentHashMap<>();
-
-
+	protected static final ConcurrentHashMap<Integer, Consumer<?>> queries = new ConcurrentHashMap<>();
 
 	int id = -1;
 	private String name;
@@ -69,12 +68,22 @@ public class Connection<MSG extends Message> {
 
 	private Listener<Connection> listener;
 
-	protected Connection () {
-	}
+	protected Connection () { }
 
 	void initialize (Serialization serialization, Listener<Connection> handler, int writeBufferSize, int objectBufferSize) {
 		tcp = new TcpConnection(serialization, writeBufferSize, objectBufferSize);
 		listener = handler;
+	}
+
+
+	@SuppressWarnings("unchecked")
+	<Q> void accept(Response<Q> response) {
+		final Consumer<Q> callback = (Consumer<Q>) queries.get(response.id);
+		if (callback != null) {
+			callback.accept(response.result);
+		} else {
+			Log.warn("Received query response, but could not find matching request: " + response);
+		}
 	}
 
 	/** Returns the server assigned ID. Will return -1 if this connection has never been onConnected or the last assigned ID if this
@@ -89,9 +98,9 @@ public class Connection<MSG extends Message> {
 	}
 	
    /**
-    * Returns the last protocol error that occured on the connection.
+    * Returns the last protocol error that occurred on the connection.
     * 
-    * @return The last protocol error or null if none error occured.
+    * @return The last protocol error or null if none error occurred.
     */
    public KryoNetException getLastProtocolError() {
       return lastProtocolError;
@@ -175,8 +184,8 @@ public class Connection<MSG extends Message> {
 
 	int sendObjectTCP (Object object) {
 		Log.info("Sending TCP " + object);
+		Objects.requireNonNull(object, "Cannot send null object.");
 
-		if (object == null) throw new IllegalArgumentException("object cannot be null.");
 		try {
 			int length = tcp.send(object);
 			if (length == 0) {
@@ -208,7 +217,7 @@ public class Connection<MSG extends Message> {
 
 
 	int sendObjectUDP (Object object) {
-		if (object == null) throw new IllegalArgumentException("object cannot be null.");
+		Objects.requireNonNull(object, "Cannot send null object.");
 		SocketAddress address = udpRemoteAddress;
 		if (address == null && udp != null) address = udp.connectedAddress;
 		if (address == null && isConnected) throw new IllegalStateException("Connection is not onConnected via UDP.");

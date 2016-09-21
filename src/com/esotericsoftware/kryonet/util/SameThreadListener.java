@@ -3,6 +3,7 @@ package com.esotericsoftware.kryonet.util;
 import com.esotericsoftware.minlog.Log;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
@@ -18,7 +19,7 @@ public class SameThreadListener<T> implements Consumer<T> {
      * is performed. May result in non-deterministic behavior.*/
     @Override
     public void accept(T response) {
-        result = response;
+        result = Objects.requireNonNull(response, "Query received null response");
 
         synchronized (lock) {
             lock.notifyAll();
@@ -29,15 +30,23 @@ public class SameThreadListener<T> implements Consumer<T> {
     public T waitForResult(Duration timeout) throws TimeoutException {
         try {
             synchronized (lock) {
-                if(result == null)
-                    lock.wait(timeout.toMillis());
+                long curTime = System.currentTimeMillis();
+                final long endTime = curTime + timeout.toMillis();
+                while (result == null && curTime < endTime) {
+                    lock.wait(endTime - curTime);
+                    curTime = System.currentTimeMillis();
+                }
+                if (curTime >= endTime) {
+                    throw new TimeoutException("Query did not receive response in time");
+                }
             }
         } catch (InterruptedException e) {
             Log.error("Thread interrupted while waiting for response", e);
-            throw new TimeoutException("Did not received response in time");
+            Thread.currentThread().interrupt();
+            throw new TimeoutException("Query did not receive response in time");
         }
 
-        return result;
+        return Objects.requireNonNull(result, "Result is null");
     }
 
 }

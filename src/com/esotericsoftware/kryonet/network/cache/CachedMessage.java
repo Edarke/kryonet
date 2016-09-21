@@ -27,6 +27,4 @@ public class CachedMessage<T> {
     public final boolean isReliable(){
         return isReliable;
     }
-
-
 }

@@ -57,7 +57,7 @@ public interface ClientDiscoveryHandler {
 	 * 
 	 * @return a new {@link DatagramPacket}
 	 */
-	public DatagramPacket onRequestNewDatagramPacket();
+	DatagramPacket onRequestNewDatagramPacket();
 
 	/**
 	 * Called when the {@link AbstractClient} discovers a host.
@@ -69,13 +69,13 @@ public interface ClientDiscoveryHandler {
 	 * @param kryo
 	 *            the {@link Kryo} instance
 	 */
-	public void onDiscoveredHost(DatagramPacket datagramPacket, Kryo kryo);
+	void onDiscoveredHost(DatagramPacket datagramPacket, Kryo kryo);
 
 	/**
 	 * Called right before the {@link AbstractClient#discoverHost(int, int)} or
 	 * {@link AbstractClient#discoverHosts(int, int)} method exits. This allows the
 	 * implementation to clean up any resources used, i.e. an {@link Input}.
 	 */
-	public void onFinally();
+	void onFinally();
 
 }

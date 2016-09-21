@@ -2,8 +2,9 @@ package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryonet.network.messages.Message;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -18,8 +19,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class Query<T, C extends Connection> implements Message {
     private static final AtomicInteger counter = new AtomicInteger(0);
 
-    @JsonTypeInfo( use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.WRAPPER_OBJECT )
-    public T result;
     public final int id;
 
     private transient C origin;
@@ -30,13 +29,24 @@ public abstract class Query<T, C extends Connection> implements Message {
     }
 
 
+    /** Call this method on a received query to send back a result.
+     * This method should be called exactly once per received query
+     * and the response must be non-null*/
     public void reply(T response){
-        if (result == null && response != null) { // reply once
-            result = response;
-            origin.sendObjectTCP(this);
-        }
+        Objects.requireNonNull(response, "Cannot reply to query with null response.");
+        origin.sendObjectTCP(new Response<>(id, response));
     }
 
+
+    /** This method determines how long the client will wait to get a response from a query before timing out.
+     * If a query times out, an error condition is returned instead of a result.
+     * The default implementation is 10 minutes (subject to change)
+     *
+     * Each user-defined query can potentially override with method to define a timeout per query type.
+     */
+    public Duration getTimeout(){
+        return Duration.ofMinutes(10);
+    }
 
 
 
@@ -47,6 +57,11 @@ public abstract class Query<T, C extends Connection> implements Message {
     }
 
 
+    /** Returns the endpoint that sent this query.
+     *
+     * For incoming queries, this returns the client/server that sent the request
+     * For outgoing queries this returns null;
+     * */
     public C getSender(){
         return origin;
     }
