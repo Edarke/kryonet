@@ -47,7 +47,7 @@ Getting started is identical to kryonet if you intend to use the default server/
 
 ## Defining a message type;
 - Messages should implement either MessageToServer, MessageToClient, or both.
-- All messages inherit an isReliable method that indicates whether they should be sent over TCP or UDP by default. The intent is that you first design your game using TCP for everything, and then optimize later by selecting messages types that can be send over UDP by just overriding this method.
+- All messages inherit an isReliable method that indicates whether they should be sent over TCP or UDP by default. The intent is that you first design your game using TCP for everything, and then optimize later by selecting messages types that can be sent over UDP by just overriding this method.
 
 ```java
 	/** This message indicates that the client has requested their player to move once in a particular direction.
@@ -119,7 +119,7 @@ Here's an example that demonstrates adding callbacks for messages and queries.
 
 
 ##Queries
-Queries are types of messages that are intended to invoke a reply from the other endpoint. Queries and their results are always sent over TCP. You can define a query that returns a type T by extending QueryToServer<T> or QueryToClient<T>
+Queries are types of messages that are intended to invoke a reply from the other endpoint. Queries and their results are always sent over TCP. You can define a query that returns a type T by extending QueryToServer<T> or QueryToClient<T>. Additionally timeouts for queries can be specified by overriding the Query#getTimeout() method.
 
 
 Let's say that you're developing a turn-based strategy game.
