@@ -1,6 +1,6 @@
 This project is based on Nathan Sweet's [KryoNet](https://github.com/EsotericSoftware/kryonet)  
 
-This project is not backwards-compatible with KryoNet, but the following guide expects you to be familiar with it. This project aims to provides higher abstraction over KryoNet with stronger type safety and potentially better performance by reducing redundant serialization of messages.
+This project is not backwards-compatible with KryoNet, but the following guide expects you to be familiar with it. This project aims to provides higher abstraction over KryoNet with stronger type safety and better performance by reducing redundant serialization of messages.
 
 
 Key changes from KryoNet
