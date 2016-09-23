@@ -14,12 +14,6 @@ Key changes from KryoNet
 - Removes support for RMI
 
 
-Tips:
-- Messages should be sent with connection.send() which delegates to sendTCP or sendUDP depending on the message type
-- Don't rely on instanceOf checks, use RegisteredServerListener and RegisteredClientListener to register callbacks for each message type.
-
-
-
 Examples:
 
 - [Creating a Server and Client](#creating-a-server-and-client)
