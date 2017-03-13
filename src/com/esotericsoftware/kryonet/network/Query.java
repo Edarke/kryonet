@@ -57,7 +57,8 @@ public abstract class Query<T, C extends Connection> implements Message {
     }
 
 
-    /** Returns the endpoint that sent this query.
+    /** Returns the endpoint that sent this query. This value is set by Kryonet when it
+     * receives a query request.
      *
      * For incoming queries, this returns the client/server that sent the request
      * For outgoing queries this returns null;

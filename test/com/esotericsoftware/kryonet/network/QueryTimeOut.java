@@ -1,15 +1,16 @@
-package com.esotericsoftware.kryonet.v2;
+package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryonet.adapters.RegisteredClientListener;
 import com.esotericsoftware.kryonet.adapters.RegisteredServerListener;
 import com.esotericsoftware.kryonet.network.messages.QueryToServer;
 import com.esotericsoftware.minlog.Log;
-import org.junit.Before;
-import org.junit.Test;
-
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import org.junit.Before;
+import org.junit.Test;
 
 /**
  * Created by Evan on 8/21/16.
@@ -42,17 +43,9 @@ public class QueryTimeOut extends KryoNetTestCase {
             query.reply(54321);
         });
         server.addListener(serverListener);
-
-
-
         RegisteredClientListener listener = new RegisteredClientListener();
-
-
-
         super.reg(server.getKryo(), client.getKryo(), ShortQuery.class);
-
         startEndPoint(server);
-
 
         client.addListener(listener);
         startEndPoint(client);
@@ -68,6 +61,31 @@ public class QueryTimeOut extends KryoNetTestCase {
         assertNotNull(result);
         assertFalse(result.isPresent());
     }
+
+// TODO: (Java 9) Re-Add support for automatic timeouts, if desired.
+//    @Test
+//    public void testQueryFutureTimeout(){
+//        assertNotNull(clientRef);
+//        ShortQuery query = new ShortQuery();
+//        query.timeout = Duration.ofMillis(1);
+//        CompletableFuture<Integer> result = client.getConnection().sendAsync(query);
+//        assertNotNull(result);
+//        sleep(100);
+//        assertTrue(result.isCompletedExceptionally());
+//    }
+
+    @Test
+    public void testQueryFutureCompletion() throws ExecutionException, InterruptedException {
+        assertNotNull(clientRef);
+        ShortQuery query = new ShortQuery();
+        query.timeout = Duration.ofMinutes(10);
+        CompletableFuture<Integer> result = client.getConnection().sendAsync(query);
+        assertNotNull(result);
+        sleep(100);
+        assertTrue(result.isDone());
+        assertEquals(54321, result.get().intValue());
+    }
+
 
     @Test
     public void testQueryOk(){

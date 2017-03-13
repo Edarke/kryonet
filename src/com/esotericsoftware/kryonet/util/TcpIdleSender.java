@@ -19,9 +19,9 @@
 
 package com.esotericsoftware.kryonet.util;
 
+import com.esotericsoftware.kryonet.adapters.ConnectionAdapter;
 import com.esotericsoftware.kryonet.network.Connection;
 import com.esotericsoftware.kryonet.network.EndPoint;
-import com.esotericsoftware.kryonet.adapters.ConnectionAdapter;
 import com.esotericsoftware.kryonet.network.messages.Message;
 
 public abstract class TcpIdleSender<M extends Message> extends ConnectionAdapter<Connection<M>> {

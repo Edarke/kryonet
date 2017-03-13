@@ -21,7 +21,6 @@ package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryonet.adapters.Listener;
-import com.esotericsoftware.kryonet.network.cache.CachedMessage;
 import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.kryonet.network.messages.FrameworkMessage;
 import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.Ping;

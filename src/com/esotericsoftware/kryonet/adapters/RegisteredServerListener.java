@@ -13,8 +13,6 @@ import java.util.function.BiConsumer;
 public class RegisteredServerListener extends RegisteredListener<ClientConnection> {
 
 
-
-
     /** Register a handler for a message type. When a message of type clazz is received,
      * the callback is invoked with the message and the connection it came from passed
      * as arguments.

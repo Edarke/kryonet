@@ -1,6 +1,5 @@
-package com.esotericsoftware.kryonet.v2;
+package com.esotericsoftware.kryonet.network;
 
-import com.esotericsoftware.kryonet.network.ClientConnection;
 import com.esotericsoftware.kryonet.network.impl.Client;
 import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.minlog.Log;

@@ -26,7 +26,7 @@ import com.esotericsoftware.kryonet.network.ClientConnection;
 import com.esotericsoftware.kryonet.network.Connection;
 import com.esotericsoftware.kryonet.network.ServerConnection;
 import com.esotericsoftware.kryonet.utils.StringMessage;
-import com.esotericsoftware.kryonet.v2.KryoNetTestCase;
+import com.esotericsoftware.kryonet.network.KryoNetTestCase;
 
 import java.io.IOException;
 import java.util.List;

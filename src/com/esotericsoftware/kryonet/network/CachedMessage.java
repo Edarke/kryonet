@@ -1,6 +1,4 @@
-package com.esotericsoftware.kryonet.network.cache;
-
-import com.esotericsoftware.kryonet.network.EndPoint;
+package com.esotericsoftware.kryonet.network;
 
 import java.nio.ByteBuffer;
 /**
@@ -13,8 +11,7 @@ import java.nio.ByteBuffer;
  */
 public class CachedMessage<T> {
 
-
-    public final ByteBuffer cached;
+    final ByteBuffer cached;
 
     private final boolean isReliable;
 
@@ -23,7 +20,7 @@ public class CachedMessage<T> {
         this.isReliable = isReliable;
     }
 
-
+    /** Returns true if the original message was to be sent over TCP. */
     public final boolean isReliable(){
         return isReliable;
     }

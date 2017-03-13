@@ -1,9 +1,7 @@
 package com.esotericsoftware.kryonet.network.impl;
 
-import com.esotericsoftware.kryonet.adapters.Listener;
 import com.esotericsoftware.kryonet.network.AbstractServer;
 import com.esotericsoftware.kryonet.network.ClientConnection;
-import com.esotericsoftware.kryonet.network.Connection;
 import com.esotericsoftware.kryonet.serializers.Serialization;
 
 /**

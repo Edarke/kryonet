@@ -20,6 +20,7 @@
 package com.esotericsoftware.kryonet.util;
 
 public class KryoNetException extends RuntimeException {
+
 	public KryoNetException () {
 		super();
 	}

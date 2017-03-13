@@ -39,7 +39,6 @@ class TcpConnection {
 	static private final int IPTOS_LOWDELAY = 0x10;
 	private static final String TAG = "Kryonet";
 
-
 	SocketChannel socketChannel;
 	int keepAliveMillis = 8000;
 	final ByteBuffer readBuffer, writeBuffer;

@@ -23,7 +23,7 @@ import com.esotericsoftware.kryonet.adapters.ConnectionAdapter;
 import com.esotericsoftware.kryonet.network.impl.Client;
 import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.kryonet.network.Connection;
-import com.esotericsoftware.kryonet.v2.KryoNetTestCase;
+import com.esotericsoftware.kryonet.network.KryoNetTestCase;
 
 import java.io.IOException;
 import java.util.Timer;

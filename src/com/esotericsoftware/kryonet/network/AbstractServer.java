@@ -22,9 +22,10 @@ package com.esotericsoftware.kryonet.network;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.util.IntMap;
 import com.esotericsoftware.kryonet.adapters.Listener;
-import com.esotericsoftware.kryonet.network.cache.CachedMessage;
-import com.esotericsoftware.kryonet.network.messages.*;
+import com.esotericsoftware.kryonet.network.messages.FrameworkMessage;
 import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.RegisterTCP;
+import com.esotericsoftware.kryonet.network.messages.MessageToClient;
+import com.esotericsoftware.kryonet.network.messages.QueryToServer;
 import com.esotericsoftware.kryonet.serializers.KryoSerialization;
 import com.esotericsoftware.kryonet.serializers.Serialization;
 import com.esotericsoftware.kryonet.util.KryoNetException;
@@ -464,8 +465,8 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
     }
 
     /**
-     * Allows the connections used by the server to be subclassed. This can be useful for storage per connection without an
-     * additional lookup.
+     * Allows the connections used by the server to be subclassed.
+     * This can be useful for storing per connection data.
      */
     protected abstract T newConnection();
 
@@ -478,7 +479,6 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
         pendingConnections.remove(connection.id);
     }
 
-    // BOZO - Provide mechanism for sending to multiple clients without serializing multiple times.
 
     private ByteBuffer writeToBuffer(MessageToClient msg) {
         final ByteBuffer raw = ByteBuffer.allocate(writeBufferSize);

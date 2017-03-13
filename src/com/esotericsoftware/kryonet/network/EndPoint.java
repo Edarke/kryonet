@@ -21,7 +21,6 @@ package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryonet.adapters.Listener;
-import com.esotericsoftware.kryonet.network.cache.CachedMessageFactory;
 import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.kryonet.network.messages.Message;
 import com.esotericsoftware.kryonet.serializers.KryoSerialization;
@@ -62,6 +61,7 @@ public abstract class EndPoint<FM extends Message, C extends Connection<FM>> imp
 	protected EndPoint(Serialization serializer, int writeBufferSize){
 		this.serializer = serializer;
 		this.writeBufferSize = writeBufferSize;
+		this.cachedMessageFactory = new CachedMessageFactory(serializer, writeBufferSize);
 	}
 
 
@@ -104,11 +104,6 @@ public abstract class EndPoint<FM extends Message, C extends Connection<FM>> imp
 		close();
 		selector.close();
 	}
-
-
-
-
-
 
 
 	public void addListener (Listener<? super C> listener) {
@@ -158,10 +153,10 @@ public abstract class EndPoint<FM extends Message, C extends Connection<FM>> imp
 
 
 	/** Creates a new Factory capable of creating CachedMessages.
-	 * Since the factory uses a significant amount of memory, this method should be called once
-	 * and the result re-used.*/
+	 * CachedMessages contain pre-serialized forms of Message objects so they can be sent multiple times
+	 * without redundant serialization. */
 	public CachedMessageFactory getCachedMessageFactory(){
-		return new CachedMessageFactory(getSerialization(), writeBufferSize);
+		return cachedMessageFactory;
 	}
 
 }

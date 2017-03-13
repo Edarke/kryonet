@@ -29,7 +29,7 @@ import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.kryonet.network.ClientConnection;
 import com.esotericsoftware.kryonet.network.Connection;
 import com.esotericsoftware.kryonet.serializers.Serialization;
-import com.esotericsoftware.kryonet.v2.KryoNetTestCase;
+import com.esotericsoftware.kryonet.network.KryoNetTestCase;
 
 import java.io.IOException;
 import java.net.DatagramPacket;

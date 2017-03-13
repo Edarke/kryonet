@@ -1,16 +1,13 @@
-package com.esotericsoftware.kryonet.v2;
+package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryo.io.ByteBufferInputStream;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.serializers.DefaultSerializers;
-import com.esotericsoftware.kryonet.network.cache.CachedMessage;
-import com.esotericsoftware.kryonet.network.cache.CachedMessageFactory;
 import com.esotericsoftware.kryonet.serializers.KryoSerialization;
 import com.esotericsoftware.kryonet.utils.StringMessage;
 import com.esotericsoftware.minlog.Log;
-import junit.framework.TestCase;
-
 import java.nio.ByteBuffer;
+import junit.framework.TestCase;
 
 /**
  * Created by Evan on 7/16/16.

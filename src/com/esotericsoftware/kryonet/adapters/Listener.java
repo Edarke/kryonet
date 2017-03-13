@@ -19,9 +19,9 @@
 
 package com.esotericsoftware.kryonet.adapters;
 
-import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.kryonet.network.AbstractClient;
 import com.esotericsoftware.kryonet.network.Connection;
+import com.esotericsoftware.kryonet.network.impl.Server;
 
 /** Used to be notified about connection events. */
 public interface Listener<T extends Connection> {
