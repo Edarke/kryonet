@@ -150,7 +150,7 @@ Queries are defined very much like normal messages. For example, we can define R
 
 
 ##Pre-serialized Messages
-Identical messages that are sent frequently can be serialized once ahead-of-time and sent more efficiently later. A quick benchmark suggests that pre-serialized messages can be sent 10x faster for simple objects. The CachedMessage object creates a ByteBuffer of minimal size to hold the serialized form (With kryo serialization this is a very small memory cost, but could be significant with json or other formats). Creation of CachedMessages is relatively expensive and should be done before the server starts. For messages with dynamic content that can't be cached at start-up, use the variants of server.sendToAll(MessageToClient, Iterable<ClientConnection>), which will only perform serialization once for a batch send. 
+Identical messages that are sent frequently can be serialized once ahead-of-time and sent more efficiently later. A quick benchmark suggests that pre-serialized messages can be sent 10x faster for simple objects.  
 
 ```java
 	CachedMessageFactory msgFactory = server.getCachedMessageFactory(); 
