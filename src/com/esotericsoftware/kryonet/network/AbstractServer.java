@@ -29,18 +29,30 @@ import com.esotericsoftware.kryonet.network.messages.QueryToServer;
 import com.esotericsoftware.kryonet.serializers.KryoSerialization;
 import com.esotericsoftware.kryonet.serializers.Serialization;
 import com.esotericsoftware.kryonet.util.KryoNetException;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.*;
+import java.nio.channels.CancelledKeyException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import static com.esotericsoftware.minlog.Log.*;
+import static com.esotericsoftware.minlog.Log.DEBUG;
+import static com.esotericsoftware.minlog.Log.ERROR;
+import static com.esotericsoftware.minlog.Log.INFO;
+import static com.esotericsoftware.minlog.Log.TRACE;
+import static com.esotericsoftware.minlog.Log.WARN;
+import static com.esotericsoftware.minlog.Log.debug;
+import static com.esotericsoftware.minlog.Log.error;
+import static com.esotericsoftware.minlog.Log.info;
+import static com.esotericsoftware.minlog.Log.trace;
+import static com.esotericsoftware.minlog.Log.warn;
 
 /**
  * Manages TCP and optionally UDP connections from many {@link AbstractClient Clients}.
@@ -51,18 +63,9 @@ import static com.esotericsoftware.minlog.Log.*;
 public abstract class AbstractServer<T extends ClientConnection> extends EndPoint<MessageToClient, T> {
 
     private final int objectBufferSize;
-    private ServerSocketChannel serverChannel;
-    private UdpConnection udp;
-
     private final IntMap<T> pendingConnections = new IntMap<>();
     private final List<T> connections = new CopyOnWriteArrayList<>();
-
-    private int nextConnectionID = 1;
-    private volatile boolean shutdown;
-    private ServerDiscoveryHandler discoveryHandler;
-
     private final Class<T> classTag;
-
     private final Listener<Connection> dispatchListener = new Listener<Connection>() {
 
         public void onConnected(Connection conn) {
@@ -85,11 +88,6 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
                 listener.onDisconnected(connection);
         }
 
-        public void received(Connection conn, Object object) {
-            throw new UnsupportedOperationException();
-        }
-
-
         public void onIdle(Connection conn) {
             final T connection = classTag.cast(conn);
             final List<Listener<? super T>> listeners = AbstractServer.this.listeners;
@@ -100,7 +98,16 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
                 if (!connection.isIdle()) break;
             }
         }
+
+        public void received(Connection conn, Object object) {
+            throw new UnsupportedOperationException();
+        }
     };
+    private ServerSocketChannel serverChannel;
+    private UdpConnection udp;
+    private int nextConnectionID = 1;
+    private volatile boolean shutdown;
+    private ServerDiscoveryHandler discoveryHandler;
 
     /**
      * Creates a Server with a write buffer size of 16384 and an object buffer size of 2048.
@@ -146,11 +153,6 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
         discoveryHandler = newDiscoveryHandler;
     }
 
-
-    public Kryo getKryo() {
-        return ((KryoSerialization) serializer).getKryo();
-    }
-
     /**
      * Opens a TCP only server.
      *
@@ -158,15 +160,6 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
      */
     public void bind(int tcpPort) throws IOException {
         bind(new InetSocketAddress(tcpPort), null);
-    }
-
-    /**
-     * Opens a TCP and UDP server.
-     *
-     * @throws IOException if the server could not be opened.
-     */
-    public void bind(int tcpPort, int udpPort) throws IOException {
-        bind(new InetSocketAddress(tcpPort), new InetSocketAddress(udpPort));
     }
 
     /**
@@ -196,6 +189,340 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
         if (INFO) info(TAG, "Server opened.");
     }
 
+    /**
+     * Opens a TCP and UDP server.
+     *
+     * @throws IOException if the server could not be opened.
+     */
+    public void bind(int tcpPort, int udpPort) throws IOException {
+        bind(new InetSocketAddress(tcpPort), new InetSocketAddress(udpPort));
+    }
+
+    void removeConnection(T connection) {
+        connections.remove(connection);
+        pendingConnections.remove(connection.id);
+    }
+
+    public void sendToAll(MessageToClient object, Iterable<T> targets) {
+        if (object.isReliable()) {
+            sendToAllTCP(object, targets);
+        } else {
+            sendToAllUDP(object, targets);
+        }
+    }
+
+    public void sendToAllTCP(MessageToClient object, Iterable<T> targets) {
+        final ByteBuffer raw = writeToBuffer(object);
+
+        for (T target : targets) {
+            target.sendBytesTCP(raw);
+        }
+    }
+
+    public void sendToAllUDP(MessageToClient object, Iterable<T> targets) {
+        final ByteBuffer raw = writeToBuffer(object);
+
+
+        for (T target : targets) {
+            target.sendBytesUDP(raw);
+        }
+    }
+
+    private ByteBuffer writeToBuffer(MessageToClient msg) {
+        final ByteBuffer raw = ByteBuffer.allocate(writeBufferSize);
+        ByteBuffer.allocate(writeBufferSize);
+        serializer.write(raw, msg);
+        raw.flip();
+        return raw;
+    }
+
+    public void sendToAll(CachedMessage<? extends MessageToClient> object, Iterable<T> targets) {
+        if (object.isReliable()) {
+            sendToAllTCP(object, targets);
+        } else {
+            sendToAllUDP(object, targets);
+        }
+    }
+
+    public void sendToAllTCP(CachedMessage<? extends MessageToClient> msg, Iterable<T> targets) {
+        final ByteBuffer raw = msg.cached;
+        for (T target : targets) {
+            target.sendBytesTCP(raw);
+        }
+    }
+
+    public void sendToAllUDP(CachedMessage<? extends MessageToClient> msg, Iterable<T> targets) {
+        final ByteBuffer raw = msg.cached;
+        for (T target : targets) {
+            target.sendBytesUDP(raw);
+        }
+    }
+
+    public void sendToAllTCP(MessageToClient msg) {
+        sendToAllTCP(msg, this.connections);
+    }
+
+    public void sendToAllTCP(CachedMessage<? extends MessageToClient> msg) {
+        sendToAllTCP(msg, this.connections);
+    }
+
+    public void sendToAllUDP(MessageToClient msg) {
+        sendToAllUDP(msg, this.connections);
+    }
+
+    public void sendToAllUDP(CachedMessage<? extends MessageToClient> msg) {
+        sendToAllUDP(msg, this.connections);
+    }
+
+    public void sendToAllOthers(int connectionID, MessageToClient msg) {
+        if (msg.isReliable()) {
+            sendToAllOthersTCP(connectionID, msg);
+        } else {
+            sendToAllOthersUDP(connectionID, msg);
+        }
+    }
+
+    public void sendToAllOthersTCP(int connectionID, MessageToClient object) {
+        final ByteBuffer raw = writeToBuffer(object);
+
+        final List<T> connections = this.connections;
+        for (T target : connections) {
+            if (target.getID() != connectionID)
+                target.sendBytesTCP(raw);
+        }
+    }
+
+    public void sendToAllOthersUDP(int connectionID, MessageToClient object) {
+        final ByteBuffer raw = writeToBuffer(object);
+
+        final List<T> connections = this.connections;
+        for (T target : connections) {
+            if (target.getID() != connectionID)
+                target.sendBytesUDP(raw);
+        }
+    }
+
+    public void sendToAllOthers(int connectionID, CachedMessage<? extends MessageToClient> msg) {
+        if (msg.isReliable()) {
+            sendToAllOthersTCP(connectionID, msg);
+        } else {
+            sendToAllOthersUDP(connectionID, msg);
+        }
+    }
+
+    public void sendToAllOthersTCP(int connectionID, CachedMessage<? extends MessageToClient> msg) {
+        final List<T> connections = this.connections;
+        for (T target : connections) {
+            if (target.getID() != connectionID)
+                target.sendBytesTCP(msg.cached);
+        }
+    }
+
+    public void sendToAllOthersUDP(int connectionID, CachedMessage<? extends MessageToClient> msg) {
+        final List<T> connections = this.connections;
+        for (T target : connections) {
+            if (target.getID() != connectionID)
+                target.sendBytesUDP(msg.cached);
+        }
+    }
+
+    /**
+     * Returns an unmodifiable view of active connections. As clients connect and
+     * disconnect, the view will be updated, but attempting to modify it directly will
+     * result in an exception.
+     * <p>
+     * Its safe to call this method once the server is create and maintain a reference to it indefinitely
+     * No guarantee is made about the order in which the clients are maintained
+     */
+    public List<T> getConnections() {
+        return Collections.unmodifiableList(connections);
+    }
+
+    protected String getTag() {
+        return "KryoServer";
+    }
+
+    public void run() {
+        if (TRACE) trace(TAG, "Server thread started.");
+        shutdown = false;
+        while (!shutdown) {
+            try {
+                update(250);
+            } catch (IOException ex) {
+                if (ERROR) error(TAG, "Error updating server connections.", ex);
+                close();
+            }
+        }
+        if (TRACE) trace(TAG, "Server thread stopped.");
+    }
+
+    private void keepAlive() {
+        long time = System.currentTimeMillis();
+        final List<T> connections = this.connections;
+        for (T connection : connections) {
+            if (connection.tcp.needsKeepAlive(time)) connection.sendObjectTCP(FrameworkMessage.keepAlive);
+        }
+    }
+
+    private void handleTCP(Object object, T fromConnection) {
+        if (object instanceof FrameworkMessage) {
+            if (TRACE) {
+                trace(TAG, fromConnection + " received: " + object.getClass().getSimpleName());
+            }
+
+            if (object instanceof FrameworkMessage.Ping) {
+                fromConnection.acceptPing((FrameworkMessage.Ping) object);
+            }
+
+            return;  // Don't expose framework objects to user.
+        }
+
+
+        if (DEBUG) {
+            String objectString = object == null ? "null" : object.getClass().getSimpleName();
+            debug(TAG, fromConnection + " received: " + objectString);
+        }
+
+
+        if (object instanceof Response) {
+            fromConnection.accept((Response) object);
+            return;
+        } else if (object instanceof QueryToServer) {
+            ((Query) object).setOrigin(fromConnection);
+        }
+
+        final List<Listener<? super T>> listeners = AbstractServer.this.listeners;
+
+        for (Listener<? super T> listener : listeners)
+            listener.received(fromConnection, object);
+
+    }
+
+    private void acceptOperation(SocketChannel socketChannel) {
+        T connection = newConnection();
+        connection.initialize(serializer, dispatchListener, writeBufferSize, objectBufferSize);
+        connection.endPoint = this;
+        UdpConnection udp = this.udp;
+        if (udp != null) connection.udp = udp;
+        try {
+            SelectionKey selectionKey = connection.tcp.accept(selector, socketChannel);
+            selectionKey.attach(connection);
+
+            int id = ++nextConnectionID;
+            if (nextConnectionID == -1) nextConnectionID = 1;
+            connection.id = id;
+            connection.setConnected(true);
+
+
+            if (udp == null)
+                addConnection(connection);
+            else
+                pendingConnections.put(id, connection);
+
+            RegisterTCP registerConnection = new RegisterTCP();
+            registerConnection.connectionID = id;
+            connection.sendObjectTCP(registerConnection);
+
+            if (udp == null) connection.notifyConnected();
+        } catch (IOException ex) {
+            connection.close();
+            if (DEBUG) debug(TAG, "Unable to accept TCP connection.", ex);
+        }
+    }
+
+    private void handleUDP(Object object, T fromConnection, InetSocketAddress fromAddress) {
+        if (object instanceof FrameworkMessage) {
+            if (object instanceof FrameworkMessage.RegisterUDP) {
+                // Store the fromAddress on the connection and reply over TCP with a RegisterUDP to indicate success.
+                int fromConnectionID = ((FrameworkMessage.RegisterUDP) object).connectionID;
+                T connection = pendingConnections.remove(fromConnectionID);
+                if (connection != null) {
+                    if (connection.udpRemoteAddress == null) {
+                        connection.udpRemoteAddress = fromAddress;
+                        addConnection(connection);
+                        connection.sendObjectTCP(new FrameworkMessage.RegisterUDP());
+                        if (DEBUG)
+                            debug(TAG, "Port " + udp.datagramChannel.socket().getLocalPort() + "/UDP connected to: " + fromAddress);
+                        dispatchListener.onConnected(connection);
+                    }
+                } else if (DEBUG)
+                    debug(TAG, "Ignoring incoming RegisterUDP with invalid connection ID: " + fromConnectionID);
+            } else if (object instanceof FrameworkMessage.DiscoverHost) {
+                try {
+                    boolean responseSent = discoveryHandler.onDiscoverHost(udp.datagramChannel, fromAddress, serializer);
+                    if (DEBUG && responseSent)
+                        debug(TAG, "Responded to host discovery from: " + fromAddress);
+                } catch (IOException ex) {
+                    if (WARN) warn(TAG, "Error replying to host discovery from: " + fromAddress, ex);
+                }
+            }
+        } else if (fromConnection != null) {
+            final List<Listener<? super T>> listeners = AbstractServer.this.listeners;
+
+            for (Listener<? super T> listener : listeners)
+                listener.received(fromConnection, object);
+        } else {
+            if (DEBUG) debug(TAG, "Ignoring UDP from unregistered address: " + fromAddress);
+        }
+    }
+
+    /**
+     * Allows the connections used by the server to be subclassed.
+     * This can be useful for storing per connection data.
+     */
+    protected abstract T newConnection();
+
+    private void addConnection(T connection) {
+        connections.add(connection);
+    }
+
+    public void start() {
+        new Thread(this, "Server").start();
+    }
+
+    public void stop() {
+        if (shutdown) return;
+        close();
+        if (TRACE) trace(TAG, "Server thread stopping.");
+        shutdown = true;
+    }
+
+    /**
+     * Closes all open connections and the server port(s).
+     */
+    public void close() {
+        List<T> connections = this.connections;
+        if (INFO && connections.size() > 0) info(TAG, "Closing server connections...");
+        for (T t : connections)
+            t.close();
+        connections.clear();
+
+        ServerSocketChannel serverChannel = this.serverChannel;
+        if (serverChannel != null) {
+            try {
+                serverChannel.close();
+                if (INFO) info(TAG, "Server closed.");
+            } catch (IOException ex) {
+                if (DEBUG) debug(TAG, "Unable to close server.", ex);
+            }
+            this.serverChannel = null;
+        }
+
+        UdpConnection udp = this.udp;
+        if (udp != null) {
+            udp.close();
+            this.udp = null;
+        }
+
+        synchronized (updateLock) { // Blocks to avoid a select while the selector is used to bind the server connection.
+        }
+        // Select one last time to complete closing the socket.
+        selector.wakeup();
+        try {
+            selector.selectNow();
+        } catch (IOException ignored) {
+        }
+    }
 
     /**
      * Accepts any new connections and reads or writes any pending data for the current connections.
@@ -326,312 +653,8 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
         }
     }
 
-
-    private void handleTCP(Object object, T fromConnection) {
-        if (object instanceof FrameworkMessage) {
-            if (TRACE) {
-                trace(TAG, fromConnection + " received: " + object.getClass().getSimpleName());
-            }
-
-            if (object instanceof FrameworkMessage.Ping) {
-                fromConnection.acceptPing((FrameworkMessage.Ping) object);
-            }
-
-            return;  // Don't expose framework objects to user.
-        }
-
-
-        if (DEBUG) {
-            String objectString = object == null ? "null" : object.getClass().getSimpleName();
-            debug(TAG, fromConnection + " received: " + objectString);
-        }
-
-
-        if (object instanceof Response) {
-            fromConnection.accept((Response) object);
-            return;
-        } else if (object instanceof QueryToServer) {
-            ((Query) object).setOrigin(fromConnection);
-        }
-
-        final List<Listener<? super T>> listeners = AbstractServer.this.listeners;
-
-        for (Listener<? super T> listener : listeners)
-            listener.received(fromConnection, object);
-
-    }
-
-
-    private void handleUDP(Object object, T fromConnection, InetSocketAddress fromAddress) {
-        if (object instanceof FrameworkMessage) {
-            if (object instanceof FrameworkMessage.RegisterUDP) {
-                // Store the fromAddress on the connection and reply over TCP with a RegisterUDP to indicate success.
-                int fromConnectionID = ((FrameworkMessage.RegisterUDP) object).connectionID;
-                T connection = pendingConnections.remove(fromConnectionID);
-                if (connection != null) {
-                    if (connection.udpRemoteAddress == null) {
-                        connection.udpRemoteAddress = fromAddress;
-                        addConnection(connection);
-                        connection.sendObjectTCP(new FrameworkMessage.RegisterUDP());
-                        if (DEBUG)
-                            debug(TAG, "Port " + udp.datagramChannel.socket().getLocalPort() + "/UDP connected to: " + fromAddress);
-                        dispatchListener.onConnected(connection);
-                    }
-                } else if (DEBUG)
-                    debug(TAG, "Ignoring incoming RegisterUDP with invalid connection ID: " + fromConnectionID);
-            } else if (object instanceof FrameworkMessage.DiscoverHost) {
-                try {
-                    boolean responseSent = discoveryHandler.onDiscoverHost(udp.datagramChannel, fromAddress, serializer);
-                    if (DEBUG && responseSent)
-                        debug(TAG, "Responded to host discovery from: " + fromAddress);
-                } catch (IOException ex) {
-                    if (WARN) warn(TAG, "Error replying to host discovery from: " + fromAddress, ex);
-                }
-            }
-        } else if (fromConnection != null) {
-            final List<Listener<? super T>> listeners = AbstractServer.this.listeners;
-
-            for (Listener<? super T> listener : listeners)
-                listener.received(fromConnection, object);
-        } else {
-            if (DEBUG) debug(TAG, "Ignoring UDP from unregistered address: " + fromAddress);
-        }
-    }
-
-
-    private void keepAlive() {
-        long time = System.currentTimeMillis();
-        final List<T> connections = this.connections;
-        for (T connection : connections) {
-            if (connection.tcp.needsKeepAlive(time)) connection.sendObjectTCP(FrameworkMessage.keepAlive);
-        }
-    }
-
-    public void run() {
-        if (TRACE) trace(TAG, "Server thread started.");
-        shutdown = false;
-        while (!shutdown) {
-            try {
-                update(250);
-            } catch (IOException ex) {
-                if (ERROR) error(TAG, "Error updating server connections.", ex);
-                close();
-            }
-        }
-        if (TRACE) trace(TAG, "Server thread stopped.");
-    }
-
-    public void start() {
-        new Thread(this, "Server").start();
-    }
-
-    public void stop() {
-        if (shutdown) return;
-        close();
-        if (TRACE) trace(TAG, "Server thread stopping.");
-        shutdown = true;
-    }
-
-    private void acceptOperation(SocketChannel socketChannel) {
-        T connection = newConnection();
-        connection.initialize(serializer, dispatchListener, writeBufferSize, objectBufferSize);
-        connection.endPoint = this;
-        UdpConnection udp = this.udp;
-        if (udp != null) connection.udp = udp;
-        try {
-            SelectionKey selectionKey = connection.tcp.accept(selector, socketChannel);
-            selectionKey.attach(connection);
-
-            int id = ++nextConnectionID;
-            if (nextConnectionID == -1) nextConnectionID = 1;
-            connection.id = id;
-            connection.setConnected(true);
-
-
-            if (udp == null)
-                addConnection(connection);
-            else
-                pendingConnections.put(id, connection);
-
-            RegisterTCP registerConnection = new RegisterTCP();
-            registerConnection.connectionID = id;
-            connection.sendObjectTCP(registerConnection);
-
-            if (udp == null) connection.notifyConnected();
-        } catch (IOException ex) {
-            connection.close();
-            if (DEBUG) debug(TAG, "Unable to accept TCP connection.", ex);
-        }
-    }
-
-    /**
-     * Allows the connections used by the server to be subclassed.
-     * This can be useful for storing per connection data.
-     */
-    protected abstract T newConnection();
-
-    private void addConnection(T connection) {
-        connections.add(connection);
-    }
-
-    void removeConnection(T connection) {
-        connections.remove(connection);
-        pendingConnections.remove(connection.id);
-    }
-
-
-    private ByteBuffer writeToBuffer(MessageToClient msg) {
-        final ByteBuffer raw = ByteBuffer.allocate(writeBufferSize);
-        ByteBuffer.allocate(writeBufferSize);
-        serializer.write(raw, msg);
-        raw.flip();
-        return raw;
-    }
-
-    public void sendToAll(MessageToClient object, Iterable<T> targets) {
-        if (object.isReliable()) {
-            sendToAllTCP(object, targets);
-        } else {
-            sendToAllUDP(object, targets);
-        }
-    }
-
-    public void sendToAllTCP(MessageToClient object, Iterable<T> targets) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-        for (T target : targets) {
-            target.sendBytesTCP(raw);
-        }
-    }
-
-    public void sendToAllUDP(MessageToClient object, Iterable<T> targets) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-
-        for (T target : targets) {
-            target.sendBytesUDP(raw);
-        }
-    }
-
-    public void sendToAll(CachedMessage<? extends MessageToClient> object, Iterable<T> targets) {
-        if (object.isReliable()) {
-            sendToAllTCP(object, targets);
-        } else {
-            sendToAllUDP(object, targets);
-        }
-    }
-
-    public void sendToAllTCP(CachedMessage<? extends MessageToClient> msg, Iterable<T> targets) {
-        final ByteBuffer raw = msg.cached;
-        for (T target : targets) {
-            target.sendBytesTCP(raw);
-        }
-    }
-
-
-    public void sendToAllUDP(CachedMessage<? extends MessageToClient> msg, Iterable<T> targets) {
-        final ByteBuffer raw = msg.cached;
-        for (T target : targets) {
-            target.sendBytesUDP(raw);
-        }
-    }
-
-
-    public void sendToAllTCP(MessageToClient object) {
-        sendToAllTCP(object, this.connections);
-    }
-
-
-    public void sendToAllUDP(MessageToClient object) {
-        sendToAllUDP(object, this.connections);
-    }
-
-
-    public void sendToAllOthers(int connectionID, MessageToClient object) {
-        if (object.isReliable()) {
-            sendToAllOthersTCP(connectionID, object);
-        } else {
-            sendToAllOthersUDP(connectionID, object);
-        }
-    }
-
-
-
-    public void sendToAllOthersTCP(int connectionID, MessageToClient object) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-        final List<T> connections = this.connections;
-        for (T target : connections) {
-            if (target.getID() != connectionID)
-                target.sendBytesTCP(raw);
-        }
-    }
-
-
-    public void sendToAllOthersUDP(int connectionID, MessageToClient object) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-        final List<T> connections = this.connections;
-        for (T target : connections) {
-            if (target.getID() != connectionID)
-                target.sendBytesTCP(raw);
-        }
-    }
-
-
-    /**
-     * Closes all open connections and the server port(s).
-     */
-    public void close() {
-        List<T> connections = this.connections;
-        if (INFO && connections.size() > 0) info(TAG, "Closing server connections...");
-        for (T t : connections)
-            t.close();
-        connections.clear();
-
-        ServerSocketChannel serverChannel = this.serverChannel;
-        if (serverChannel != null) {
-            try {
-                serverChannel.close();
-                if (INFO) info(TAG, "Server closed.");
-            } catch (IOException ex) {
-                if (DEBUG) debug(TAG, "Unable to close server.", ex);
-            }
-            this.serverChannel = null;
-        }
-
-        UdpConnection udp = this.udp;
-        if (udp != null) {
-            udp.close();
-            this.udp = null;
-        }
-
-        synchronized (updateLock) { // Blocks to avoid a select while the selector is used to bind the server connection.
-        }
-        // Select one last time to complete closing the socket.
-        selector.wakeup();
-        try {
-            selector.selectNow();
-        } catch (IOException ignored) {
-        }
-    }
-
-
-    /**
-     * Returns an unmodifiable view of active connections. As clients connect and
-     * disconnect, the view will be updated, but attempting to modify it directly will
-     * result in an exception.
-     * <p>
-     * Its safe to call this method once the server is create and maintain a reference to it indefinitely
-     * No guarantee is made about the order in which the clients are maintained
-     */
-    public List<T> getConnections() {
-        return Collections.unmodifiableList(connections);
-    }
-
-
-    protected String getTag() {
-        return "KryoServer";
+    public Kryo getKryo() {
+        return ((KryoSerialization) serializer).getKryo();
     }
 
 

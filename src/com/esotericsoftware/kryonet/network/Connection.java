@@ -109,16 +109,17 @@ public class Connection<MSG extends Message> {
 
 
 
-	void sendBytesTCP(ByteBuffer raw){
+	int sendBytesTCP(ByteBuffer raw){
 		try {
-			tcp.sendRaw(raw);
+			return tcp.sendRaw(raw);
 		} catch (IOException e) {
 			if (DEBUG) debug("kryonet", "Unable to sendRaw TCP with connection: " + this, e);
 			close();
+			return 0;
 		}
 	}
 
-	void sendBytesUDP(ByteBuffer raw){
+	int sendBytesUDP(ByteBuffer raw){
 		SocketAddress address = udpRemoteAddress;
 		if (address == null && udp != null) address = udp.connectedAddress;
 		if (address == null && isConnected) throw new IllegalStateException("Connection is not onConnected via UDP.");
@@ -126,31 +127,33 @@ public class Connection<MSG extends Message> {
 		try {
 			if (address == null)
 				throw new SocketException("Connection is closed.");
-			udp.sendRaw(raw, address);
+			return udp.sendRaw(raw, address);
 		} catch (IOException ex) {
 			if (DEBUG) debug("kryonet", "Unable to sendRaw UDP with connection: " + this, ex);
 			close();
+			return 0;
 		} catch (KryoNetException ex) {
 			if (ERROR) error("kryonet", "Unable to sendRaw UDP with connection: " + this, ex);
 			close();
+			return 0;
 		}
 	}
 
 
-	public void send(CachedMessage<? extends MSG> msg){
+	public int send(CachedMessage<? extends MSG> msg){
 		if(msg.isReliable()){
-			sendBytesTCP(msg.cached);
+			return sendBytesTCP(msg.cached);
 		} else {
-			sendBytesUDP(msg.cached);
+			return sendBytesUDP(msg.cached);
 		}
 	}
 
-	public void sendTCP(CachedMessage<? extends MSG> msg){
-		sendBytesTCP(msg.cached);
+	public int sendTCP(CachedMessage<? extends MSG> msg){
+		return sendBytesTCP(msg.cached);
 	}
 
-	public void sendUDP(CachedMessage<? extends MSG> msg){
-		sendBytesUDP(msg.cached);
+	public int sendUDP(CachedMessage<? extends MSG> msg){
+		return sendBytesUDP(msg.cached);
 	}
 
 
@@ -181,7 +184,7 @@ public class Connection<MSG extends Message> {
 	}
 
 
-	int sendObjectTCP (Object object) {
+	protected int sendObjectTCP (Object object) {
 		Log.info("Sending TCP " + object);
 		Objects.requireNonNull(object, "Cannot send null object.");
 

@@ -13,7 +13,7 @@ public interface Message {
      * is to return true so that messages are sent over tcp by default.
      *
      *
-     * Usually, this would be overriden to return a true or false constant
+     * Usually, this would be overridden to return a true or false constant
      * to indicate whether messages of this type should be sent over tpc.
      */
     default boolean isReliable(){

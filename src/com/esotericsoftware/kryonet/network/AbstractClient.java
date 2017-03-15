@@ -648,12 +648,27 @@ public abstract class AbstractClient<T extends ServerConnection> extends EndPoin
 		}
 	}
 
+	public int send(CachedMessage<? extends MessageToServer> msg){
+		if(msg.isReliable()){
+			return sendTCP(msg);
+		} else {
+			return sendUDP(msg);
+		}
+	}
 
 	public int sendTCP(MessageToServer msg) {
 		return connection.sendTCP(msg);
 	}
 
 	public int sendUDP(MessageToServer msg){
+		return connection.sendUDP(msg);
+	}
+
+	public int sendTCP(CachedMessage<? extends MessageToServer> msg) {
+		return connection.sendTCP(msg);
+	}
+
+	public int sendUDP(CachedMessage<? extends MessageToServer> msg){
 		return connection.sendUDP(msg);
 	}
 

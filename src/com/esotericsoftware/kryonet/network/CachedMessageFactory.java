@@ -26,7 +26,7 @@ public class CachedMessageFactory {
      * This method is similar to {@link #create(Message)} but creates a minimally sized buffer at the cost of
      * extra computational cost. This method may be more appropriate than {@link #create(Message)} for long lived objects
      * created when the server starts.*/
-    public <T extends Message> CachedMessage createMinimal(T msg){
+    public <T extends Message> CachedMessage<T> createMinimal(T msg){
         ByteBuffer buffer = ByteBuffer.allocate(maxBufferSize);
         buffer.clear();
         serializer.write(buffer, msg);
@@ -35,7 +35,7 @@ public class CachedMessageFactory {
         buffer.flip();
         cache.put(buffer);
         cache.flip();
-        return new CachedMessage(cache, msg.isReliable());
+        return new CachedMessage<>(cache, msg.isReliable());
     }
 
     /** Create a pre-serialized form of a message in a type safe wrapper.
