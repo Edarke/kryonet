@@ -101,11 +101,11 @@ Here's an example that demonstrates adding callbacks for messages and queries.
 
 	listener.addQueryHandle(LoginQuery.class, (query, connection) -> {
 		//Reply should be called once on each query to send back a result
-        if(query.username.equals("John Smith") && query.password.equals("1234")) {
-        	query.reply(LoginStatus.SUCCESS);
-        } else {
-		query.reply(LoginStatus.FAILURE);            
-        }
+		if(query.username.equals("John Smith") && query.password.equals("1234")) {
+			query.reply(LoginStatus.SUCCESS);
+		} else {
+			query.reply(LoginStatus.FAILURE);            
+		}
     });
     
     server.addListener(listener);
@@ -123,11 +123,13 @@ In your game client, you probably have code that involves logging into your game
 Doing so produces code that is really easy to reason about. Additionally, there is no need for a dependency between your packet listener and your login logic
 ```java
     public void attemptLogin(String username, String password) {
-	    LoginStatus response = server.sendAndWait(new LoginQuery(username, password)); // This call blocks until server responds.
-	    if(response == LoginStatus.SUCCESS) {
-	    	loadGame();
-	    } else {
-	    	showDialog("Username/Password combination is incorrect.")
+	    Optional<LoginStatus> response = server.sendAndWait(new LoginQuery(username, password)); // blocks until response recieved.
+	    response.ifPresent(reply -> {
+		    if(reply == LoginStatus.SUCCESS) {
+			loadGame();
+		    } else {
+			showDialog("Username/Password combination is incorrect.")
+		    }
 	    }
     }
 ```
