@@ -134,12 +134,11 @@ Doing so produces code that is really easy to reason about. Additionally, there 
 
 Queries can also be handled asynchronously with callbacks. Let's say our player is in the middle of a battle and the server needs to indicate to the client that it's time to select an option. 
 ```java
-    player.sendAsync(new RequestSelection(), new Consumer<Selection>(){
-    	@Override
-    	public void accept(Selection reply){
-    	   // Handle selection. This code will run in another thread. 
-    	}
-    }); 
+    player.sendAsync(new RequestSelection()).thenAccept(new Consumer<Selection>(){
+		@Override
+		public void accept(Selection reply){
+		   // Handle selection. This code will run in another thread. 
+		}); 
     
 ```
 
@@ -147,7 +146,26 @@ Queries are defined very much like normal messages. For example, we can define R
 ```java
 	public class RequestSelection extends QueryToClient<Selection> { }
 ```
-
+Default timeouts can optionally be specified per query type as follows
+```java
+	public class RequestSelection extends QueryToClient<Selection> {
+		@Override
+		public Duration getTimeout() {
+			return Duration.ofMinutes(5);
+		}
+	}
+```
+A timeout can also be specified for a specific request:
+```java
+    player.sendAsync(new RequestSelection(), Duration.ofSeconds(100))
+    	.exceptionally(timeoutError -> getDefaultSelection())
+    	.thenAccept(new Consumer<Selection>(){
+		@Override
+		public void accept(Selection reply){
+		   // Handle selection. This code will run in another thread. 
+		}); 
+    
+```
 
 ##Pre-serialized Messages
 Identical messages that are sent frequently can be serialized once ahead-of-time and sent more efficiently later. A quick benchmark suggests that pre-serialized messages can be sent 10x faster for simple objects.  
