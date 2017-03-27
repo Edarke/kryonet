@@ -119,8 +119,6 @@ Queries are types of messages that are intended to invoke a reply from the other
 
 Let's say that you're developing a turn-based strategy game.
 In your game client, you probably have code that involves logging into your game server, since every request of this type will require a response, it may be appropriate to create a LoginQuery class that extends QueryToServer<T>.
-
-Doing so produces code that is really easy to reason about. Additionally, there is no need for a dependency between your packet listener and your login logic
 ```java
     public void attemptLogin(String username, String password) {
 	    Optional<LoginStatus> response = server.sendAndWait(new LoginQuery(username, password)); // blocks until response recieved.
@@ -135,21 +133,23 @@ Doing so produces code that is really easy to reason about. Additionally, there 
 ```
 
 
-Queries can also be handled asynchronously with callbacks. Let's say our player is in the middle of a battle and the server needs to indicate to the client that it's time to select an option. 
+Queries can also be handled asynchronously with futures. Let's say its player1's turn to make a move, and the game server needs to indicate to the client that it's time for the user to select an option. 
 ```java
-    player.sendAsync(new RequestSelection()).thenAccept(new Consumer<Selection>(){
+    player1.sendAsync(new RequestSelection()).thenAccept(new Consumer<Selection>(){
 		@Override
 		public void accept(Selection reply){
 		   // Handle selection. This code will run in another thread. 
-		}); 
+		}
+     }); 
     
 ```
 
-Queries are defined very much like normal messages. For example, we can define RequestSelection very simply as
+It's very easy to define new query types. For example, the RequestSelect query used above would be defined as:
 ```java
 	public class RequestSelection extends QueryToClient<Selection> { }
 ```
-Default timeouts can optionally be specified per query type as follows
+
+We can optionally, specify a default timeout for this type of query by overrriding getTimeout()
 ```java
 	public class RequestSelection extends QueryToClient<Selection> {
 		@Override
@@ -158,7 +158,7 @@ Default timeouts can optionally be specified per query type as follows
 		}
 	}
 ```
-A timeout can also be specified for a specific request:
+A timeout can also be specified for individual requests:
 ```java
     player.sendAsync(new RequestSelection(), Duration.ofSeconds(100))
     	.exceptionally(timeoutError -> getDefaultSelection())
