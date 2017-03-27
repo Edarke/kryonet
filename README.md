@@ -39,7 +39,7 @@ Getting started is identical to kryonet if you intend to use the default server/
 
 
 
-## Defining a message type;
+## Defining a message type
 - Messages should implement either MessageToServer, MessageToClient, or both.
 - All messages inherit an isReliable method that indicates whether they should be sent over TCP or UDP by default. The intent is that you first design your game using TCP for everything, and then optimize later by selecting messages types that can be sent over UDP by just overriding this method.
 
@@ -89,7 +89,7 @@ To define a message type that defaults to UDP:
 ```
 
 
-##Registering Callbacks
+## Registering Callbacks
 RegisteredListeners support mapping Message types to callbacks that can be invoked in constant time. 
 Here's an example that demonstrates adding callbacks for messages and queries.
 ```java
@@ -112,7 +112,7 @@ Here's an example that demonstrates adding callbacks for messages and queries.
 
 
 
-##Queries
+## Queries
 Queries are types of messages that are intended to invoke a reply from the other endpoint. Queries and their results are always sent over TCP. You can define a query that returns a type T by extending QueryToServer<T> or QueryToClient<T>. Additionally timeouts for queries can be specified by overriding the Query#getTimeout() method.
 
 
@@ -167,7 +167,7 @@ A timeout can also be specified for a specific request:
     
 ```
 
-##Pre-serialized Messages
+## Pre-serialized Messages
 Identical messages that are sent frequently can be serialized once ahead-of-time and sent more efficiently later. A quick benchmark suggests that pre-serialized messages can be sent 10x faster for simple objects.  
 
 ```java
