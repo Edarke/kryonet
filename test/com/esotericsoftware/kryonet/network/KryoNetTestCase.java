@@ -124,15 +124,17 @@ abstract public class KryoNetTestCase extends TestCase {
 	}
 
 	public void stopEndPoints () {
-		stopEndPoints(0);
+		for (EndPoint endPoint : endPoints)
+			endPoint.stop();
+		endPoints.clear();
+		this.server.stop();
+		this.client.stop();
 	}
 
 	public void stopEndPoints (int stopAfterMillis) {
 		timer.schedule(new TimerTask() {
 			public void run () {
-				for (EndPoint endPoint : endPoints)
-					endPoint.stop();
-				endPoints.clear();
+				stopEndPoints();
 			}
 		}, stopAfterMillis);
 	}

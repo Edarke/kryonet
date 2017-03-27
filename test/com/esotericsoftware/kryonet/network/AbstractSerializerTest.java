@@ -127,7 +127,6 @@ public abstract class AbstractSerializerTest<T extends Serialization> extends Kr
         final Server server = new Server(16384 * 2, 8192 * 2, serializer);
         final Client client = new Client(16384 * 2, 8192 * 2, serializer);
 
-        Log.TRACE();
         startEndPoint(server);
         server.bind(tcpPort, udpPort);
         server.addListener(new ConnectionAdapter<ClientConnection>() {

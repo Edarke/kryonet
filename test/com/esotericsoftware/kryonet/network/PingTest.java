@@ -39,8 +39,6 @@ public class PingTest extends KryoNetTestCase {
 
 
 
-
-
 	public void testPingToServer() throws IOException, TimeoutException {
 
 		AtomicInteger countClient = new AtomicInteger(0);
@@ -122,7 +120,6 @@ public class PingTest extends KryoNetTestCase {
 			}
 		});
 
-		Log.TRACE();
 		reg(server.getKryo(), client.getKryo(), Ping2.class, StringMessage.class);
 		new Thread(client).start();
 		new Thread(server).start();

@@ -230,7 +230,6 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
 
     private ByteBuffer writeToBuffer(MessageToClient msg) {
         final ByteBuffer raw = ByteBuffer.allocate(writeBufferSize);
-        ByteBuffer.allocate(writeBufferSize);
         serializer.write(raw, msg);
         raw.flip();
         return raw;
