@@ -17,30 +17,27 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-package com.esotericsoftware.kryonet;
+package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryonet.adapters.ConnectionAdapter;
 import com.esotericsoftware.kryonet.network.impl.Client;
 import com.esotericsoftware.kryonet.network.impl.Server;
-import com.esotericsoftware.kryonet.network.ServerConnection;
 import com.esotericsoftware.kryonet.utils.StringMessage;
-
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class KryoNetBufferUnderflowTest {
-	public static void main (String[] args) throws IOException, InterruptedException {
-		final int port = 7000;
+public class KryoNetBufferUnderflowTest extends KryoNetTestCase {
+	public void testunderflow() throws IOException, InterruptedException {
 		final int writeBufferSize = 16384;
 		final int objectBufferSize = 2048;
 		final AtomicBoolean received = new AtomicBoolean();
 
 		// Creating server
 		final Server server = new Server(writeBufferSize, objectBufferSize);
-		server.bind(port);
+		server.bind(tcpPort);
 		server.start();
-		System.out.println("Server listening on port " + port);
+		System.out.println("Server listening on port " + tcpPort);
 
 
 		// Creating client
@@ -49,14 +46,14 @@ public class KryoNetBufferUnderflowTest {
 		client.addListener(new ConnectionAdapter<ServerConnection>() {
 			@Override
 			public void received (ServerConnection connection, Object object) {
-				if (object instanceof String) {
+				if (object instanceof StringMessage) {
 					System.out.println("Received: " + object);
 					received.set(true);
 				} else
 					System.err.println("Received unexpected object");
 			}
 		});
-		client.connect(5000, "localhost", port);
+		client.connect(5000, "localhost", tcpPort);
 		System.out.println("AbstractClient onConnected");
 
 		// Catching exception
@@ -67,6 +64,7 @@ public class KryoNetBufferUnderflowTest {
 				received.set(true);
 				// Stopping it all
 				System.out.println("Stopping client and server");
+				test.fail(e);
 				client.stop();
 				server.stop();
 			}
@@ -93,8 +91,9 @@ public class KryoNetBufferUnderflowTest {
 		System.out.println("Sending: " + bigMessage);
 		received.set(false);
 		server.sendToAllTCP(bigMessage);
-		while (!received.get()) {
+		for (int i = 0; !received.get() && i < 100; ++i) {
 			Thread.sleep(100);
 		}
+		assertTrue(received.get());
 	}
 }

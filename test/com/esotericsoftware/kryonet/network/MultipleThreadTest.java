@@ -17,17 +17,12 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-package com.esotericsoftware.kryonet;
+package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryonet.adapters.ConnectionAdapter;
 import com.esotericsoftware.kryonet.network.impl.Client;
 import com.esotericsoftware.kryonet.network.impl.Server;
-import com.esotericsoftware.kryonet.network.ClientConnection;
-import com.esotericsoftware.kryonet.network.Connection;
-import com.esotericsoftware.kryonet.network.ServerConnection;
 import com.esotericsoftware.kryonet.utils.StringMessage;
-import com.esotericsoftware.kryonet.network.KryoNetTestCase;
-
 import java.io.IOException;
 import java.util.List;
 
@@ -43,7 +38,8 @@ public class MultipleThreadTest extends KryoNetTestCase {
 		final int clients = 3;
 
 		final Server server = new Server(16384, 8192);
-		server.getKryo().register(String[].class);
+
+		server.getKryo().register(StringMessage.class);
 		startEndPoint(server);
 		server.bind(tcpPort, udpPort);
 		server.addListener(new ConnectionAdapter<Connection>() {
@@ -56,15 +52,15 @@ public class MultipleThreadTest extends KryoNetTestCase {
 		// ----
 
 		for (int i = 0; i < clients; i++) {
-			Client client = new Client(16384, 8192);
-			client.getKryo().register(String[].class);
+			Client client= new Client(16384, 8192);
+			client.getKryo().register(StringMessage.class);
 			startEndPoint(client);
 			client.addListener(new ConnectionAdapter<ServerConnection>() {
 				int received;
 
 				@Override
 				public void received (ServerConnection connection, Object object) {
-					if (object instanceof String) {
+					if (object instanceof StringMessage) {
 						received++;
 						if (received == messageCount * threads) {
 							for (int i = 0; i < messageCount; i++) {
@@ -75,6 +71,8 @@ public class MultipleThreadTest extends KryoNetTestCase {
 								}
 							}
 						}
+					} else {
+						test.fail("unknown object " + object);
 					}
 				}
 			});

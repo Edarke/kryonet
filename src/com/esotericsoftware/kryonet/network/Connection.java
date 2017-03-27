@@ -153,11 +153,12 @@ public class Connection<MSG extends Message> {
         isConnected = false;
         tcp.close();
         if (udp != null && udp.connectedAddress != null) udp.close();
-        if (wasConnected) {
-            notifyDisconnected();
-            if (INFO) info("kryonet", this + " onDisconnected.");
-        }
         setConnected(false);
+
+        if (wasConnected) {
+            if (INFO) info("kryonet", this + " onDisconnected.");
+            notifyDisconnected();
+        }
     }
 
     private void notifyDisconnected() {

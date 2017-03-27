@@ -5,8 +5,6 @@ import com.esotericsoftware.kryo.serializers.DefaultArraySerializers;
 import com.esotericsoftware.kryo.serializers.DefaultSerializers;
 import com.esotericsoftware.kryonet.network.PingTest;
 import com.esotericsoftware.kryonet.network.messages.BidirectionalMessage;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
@@ -167,11 +165,6 @@ public class DataMessage implements BidirectionalMessage {
     }
 
     public String toString() {
-        try {
-            return new ObjectMapper().writeValueAsString(this);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-            return "ERROR";
-        }
+        return "Data(" + isTCP + ")";
     }
 }

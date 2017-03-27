@@ -17,7 +17,7 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-package com.esotericsoftware.kryonet;
+package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -51,7 +51,7 @@ public class DiscoverHostTest extends KryoNetTestCase {
 
 		final Server server = new Server();
 		startEndPoint(server);
-		server.bind(54555);
+		server.bind(tcpPort);
 		server.addListener(new ConnectionAdapter<ClientConnection>() {
 			@Override
 			public void onDisconnected(ClientConnection connection) {
@@ -146,7 +146,7 @@ public class DiscoverHostTest extends KryoNetTestCase {
 
 		final Server server = new Server();
 		startEndPoint(server);
-		server.bind(54555);
+		server.bind(tcpPort);
 		server.addListener(new ConnectionAdapter<Connection>() {
 			public void onDisconnected(Connection connection) {
 				broadcastServer.stop();
