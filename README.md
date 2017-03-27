@@ -1,4 +1,5 @@
-This project is based on Nathan Sweet's [KryoNet](https://github.com/EsotericSoftware/kryonet)  [![Build Status](https://travis-ci.org/Edarke/kryonet.svg?branch=master)](https://travis-ci.org/Edarke/kryonet)  
+This project is based on Nathan Sweet's [KryoNet](https://github.com/EsotericSoftware/kryonet)  
+[![Build Status](https://travis-ci.org/Edarke/kryonet.svg?branch=master)](https://travis-ci.org/Edarke/kryonet)  
 
 This project is not backwards-compatible with KryoNet, but the following guide expects you to be familiar with it. This project aims to provides higher abstraction over KryoNet with stronger type safety and better performance by reducing redundant serialization of messages.
 
