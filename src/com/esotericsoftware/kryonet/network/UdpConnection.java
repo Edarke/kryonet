@@ -101,7 +101,7 @@ class UdpConnection {
 				Object object = serialization.read(readBuffer);
 				if (readBuffer.hasRemaining())
 					throw new KryoNetException("Incorrect number of bytes (" + readBuffer.remaining()
-						+ " remaining) used to deserialize object: " + object);
+						+ " remaining) used to deserialize object: " + object + " with " + serialization);
 				return object;
 			} catch (Exception ex) {
 				throw new KryoNetException("Error during deserialization.", ex);

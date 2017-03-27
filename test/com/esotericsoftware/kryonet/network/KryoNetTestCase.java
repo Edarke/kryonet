@@ -43,11 +43,8 @@ abstract public class KryoNetTestCase extends TestCase {
 	public static final String host = "localhost";
 
 
-	public int tcpPort = ThreadLocalRandom.current().nextInt(10_000, 20_000);
-	public int udpPort = ThreadLocalRandom.current().nextInt(20_000, 30_000);
-
-
-
+	public int tcpPort = ThreadLocalRandom.current().nextInt(10_000, 30_000);
+	public int udpPort = ThreadLocalRandom.current().nextInt(30_000, 50_000);
 
 
 	protected Server server = new Server(Short.MAX_VALUE,Short.MAX_VALUE);

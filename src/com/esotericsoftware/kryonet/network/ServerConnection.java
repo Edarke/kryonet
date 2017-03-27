@@ -2,56 +2,69 @@ package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryonet.network.messages.MessageToServer;
 import com.esotericsoftware.kryonet.network.messages.QueryToServer;
-import com.esotericsoftware.kryonet.util.SameThreadListener;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
+import org.eclipse.jdt.annotation.Nullable;
 
 /**
  * Created by Evan on 6/18/16.
  */
 public class ServerConnection extends Connection<MessageToServer> {
 
-    /**Send a query message to this connection and block until a reply is received.
+
+    /**
+     * Send a query message to this connection and block until a reply is received.
+     * The request will timeout after the duration {@link Query#getTimeout()}.
+     * If no reply is received within the timeout window, Optional.empty() is returned.
      *
-     * @return The reply sent by this connection*/
+     * <p>To override the default timeout for a specific request, use {@link #sendAndWait(QueryToServer, Duration)}</p>
+     *
+     * @return The reply sent by this connection
+     */
     public <Q> Optional<Q> sendAndWait(QueryToServer<Q> query) {
-        return sendAndWait(query, query.getTimeout());
+        return super.sendAndWait(query);
     }
 
-    /**Send a query message to this connection and block until a reply is received.
+
+    /**
+     * Send a query message to this connection and block until a reply is received.
+     * If no reply is received within the timeout window, Optional.empty() is returned. If the timeout duration is null,
+     * this method will block indefinitely until a reply is received.
      *
-     * @return The reply sent by this connection*/
-    public <Q> Optional<Q> sendAndWait(QueryToServer<Q> query, Duration timeout) {
-        final SameThreadListener<Q> callback = new SameThreadListener<>();
-        sendAsync(query, callback);
-
-        try {
-            return Optional.of(callback.waitForResult(timeout));
-        } catch (TimeoutException e) {
-            queries.remove(query.id);
-            return Optional.empty();
-        }
+     * @return The reply sent by the server, or Optional.empty if no reply was received.
+     */
+    public <Q> Optional<Q> sendAndWait(QueryToServer<Q> query, @Nullable Duration timeout) {
+        return super.sendAndWait(query, timeout);
     }
 
-    /** Send a query to the server and invokes the given callback when the response received.
-     * If no response is received or the client disconnects, no error is propagated.
-     * @see #sendAsync(QueryToServer) */
-    public <T> void sendAsync(QueryToServer<T> query, Consumer<T> callback) {
-        queries.put(query.id, callback);
-        sendObjectTCP(query);
+    /**
+     * Sends a query message to a server and returns a future containing the response.
+     * If a response is not received within the timeout duration, the future is completed with an exception
+     *
+     * @param query   The request to send to the server. This query should be used in no more than one request. Reusing
+     *                queries may lead to unexpected behavior.
+     * @param timeout After this duration passes, the returned future will be canceled. If timeout is null,
+     *                The request is kept alive indefinitely.
+     */
+    public <T> CompletableFuture<T> sendAsync(QueryToServer<T> query, @Nullable Duration timeout) {
+        return super.sendAsync(query, timeout);
     }
 
-    /** Sends a query in a new thread which blocks until a response is received.
-     * If the client's connection is removed no error is propagated.
-     * If the client does not respond, no error is propagated.
-     * see {@link CompletableFuture#get(long, TimeUnit)} to detect such cases. */
+    /**
+     * Sends a query message to the server and returns a future containing the response.
+     * The query will timeout after the duration {@link Query#getTimeout()} and the returned future will be canceled
+     * if no response has been received. If {@link Query#getTimeout()} returns null, the request will never timeout.
+     *
+     * <p>
+     * The returned future will be completed exceptionally with a {@link java.util.concurrent.CancellationException} if a timeout occurs.
+     * To override the default timeout for a specific request use {@link #sendAsync(QueryToServer, Duration)}
+     * to specify a timeout duration
+     *
+     * @param query The request to send to the server. This query should be used in no more than one request. Reusing
+     *              queries may lead to unexpected behavior.
+     */
     public <T> CompletableFuture<T> sendAsync(QueryToServer<T> query) {
-        CompletableFuture<T> future = new CompletableFuture<>();
-        sendAsync(query, future::complete);
-        return future;
+        return super.sendAsync(query);
     }
 }

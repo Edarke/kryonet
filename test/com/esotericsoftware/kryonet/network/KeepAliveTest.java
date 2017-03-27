@@ -32,8 +32,8 @@ public class KeepAliveTest extends KryoNetTestCase {
         server.start();
         client.start();
 
-        server.bind(tcpPort+1, udpPort+1);
-        client.connect(2000, host, tcpPort+1, udpPort +1);
+        server.bind(tcpPort, udpPort);
+        client.connect(2000, host, tcpPort, udpPort);
 
         server.getUpdateThread().setUncaughtExceptionHandler((t, e) -> test.fail(e));
         client.getUpdateThread().setUncaughtExceptionHandler((t, e) -> test.fail(e));
@@ -50,7 +50,7 @@ public class KeepAliveTest extends KryoNetTestCase {
 
 
 
-        sleep(2000);
+        sleep(3000);
         client.close();
         server.close();
     }

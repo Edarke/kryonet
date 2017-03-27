@@ -54,25 +54,45 @@ public class QueryTimeOut extends KryoNetTestCase {
 
 
     @Test
-    public void testQueryTimeout(){
+    public void testQueryTimeout_NoResponse(){
         assertNotNull(clientRef);
-
         Optional<Integer> result = client.getConnection().sendAndWait(new ShortQuery());
         assertNotNull(result);
         assertFalse(result.isPresent());
     }
 
-// TODO: (Java 9) Re-Add support for automatic timeouts, if desired.
-//    @Test
-//    public void testQueryFutureTimeout(){
-//        assertNotNull(clientRef);
-//        ShortQuery query = new ShortQuery();
-//        query.timeout = Duration.ofMillis(1);
-//        CompletableFuture<Integer> result = client.getConnection().sendAsync(query);
-//        assertNotNull(result);
-//        sleep(100);
-//        assertTrue(result.isCompletedExceptionally());
-//    }
+    @Test
+    public void testQueryTimeout_Response(){
+        assertNotNull(clientRef);
+        ShortQuery query = new ShortQuery();
+        query.timeout = Duration.ofDays(1);
+        Optional<Integer> result = client.getConnection().sendAndWait(query);
+        assertNotNull(result);
+        assertTrue(result.isPresent());
+    }
+
+    @Test
+    public void testQueryFutureTimeoutDefault(){
+        assertNotNull(clientRef);
+        ShortQuery query = new ShortQuery();
+        query.timeout = Duration.ofMillis(1);
+        CompletableFuture<Integer> result = client.getConnection().sendAsync(query);
+        assertNotNull(result);
+        sleep(100);
+        assertTrue(result.isCompletedExceptionally());
+    }
+
+
+    @Test
+    public void testQueryFutureTimeout(){
+        assertNotNull(clientRef);
+        ShortQuery query = new ShortQuery();
+        CompletableFuture<Integer> result = client.getConnection().sendAsync(query, Duration.ofMillis(1));
+        assertNotNull(result);
+        sleep(100);
+        assertTrue(result.isCompletedExceptionally());
+    }
+
 
     @Test
     public void testQueryFutureCompletion() throws ExecutionException, InterruptedException {

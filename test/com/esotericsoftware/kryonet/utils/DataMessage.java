@@ -3,9 +3,10 @@ package com.esotericsoftware.kryonet.utils;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serializers.DefaultArraySerializers;
 import com.esotericsoftware.kryo.serializers.DefaultSerializers;
-import com.esotericsoftware.kryonet.network.messages.BidirectionalMessage;
 import com.esotericsoftware.kryonet.network.PingTest;
-
+import com.esotericsoftware.kryonet.network.messages.BidirectionalMessage;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
@@ -37,18 +38,7 @@ public class DataMessage implements BidirectionalMessage {
     public Double[] Doubles;
     public char[] chars;
 
-
-
-
-
-    private static String randString(int length){
-        byte[] rstring = new byte[length];
-        ThreadLocalRandom.current().nextBytes(rstring);
-        return new String(rstring, StandardCharsets.UTF_8);
-    }
-
-
-    public static DataMessage random(){
+    public static DataMessage random() {
         DataMessage msg = new DataMessage();
         msg.bytes = new byte[ThreadLocalRandom.current().nextInt(0, 8)];
         ThreadLocalRandom.current().nextBytes(msg.bytes);
@@ -61,85 +51,32 @@ public class DataMessage implements BidirectionalMessage {
 
         msg.booleans = new boolean[]{ThreadLocalRandom.current().nextBoolean(), ThreadLocalRandom.current().nextBoolean(), ThreadLocalRandom.current().nextBoolean()};
         msg.Booleans = new Boolean[]{ThreadLocalRandom.current().nextBoolean(), ThreadLocalRandom.current().nextBoolean(), ThreadLocalRandom.current().nextBoolean()};
-        msg.shorts = new short[] { (short) ThreadLocalRandom.current().nextInt(), (short) ThreadLocalRandom.current().nextInt()};
-        msg.Shorts = new Short[] { (short) ThreadLocalRandom.current().nextInt(), (short) ThreadLocalRandom.current().nextInt()};
+        msg.shorts = new short[]{(short) ThreadLocalRandom.current().nextInt(), (short) ThreadLocalRandom.current().nextInt()};
+        msg.Shorts = new Short[]{(short) ThreadLocalRandom.current().nextInt(), (short) ThreadLocalRandom.current().nextInt()};
 
-        msg.doubles = ThreadLocalRandom.current().doubles().limit(ThreadLocalRandom.current().nextInt(1,10)).toArray();
-        msg.Doubles = ThreadLocalRandom.current().doubles().limit(ThreadLocalRandom.current().nextInt(1,10)).boxed().toArray(Double[]::new);
+        msg.doubles = ThreadLocalRandom.current().doubles().limit(ThreadLocalRandom.current().nextInt(1, 10)).toArray();
+        msg.Doubles = ThreadLocalRandom.current().doubles().limit(ThreadLocalRandom.current().nextInt(1, 10)).boxed().toArray(Double[]::new);
         msg.chars = "Hello Word, Random String".toCharArray();
 
         msg.longs = ThreadLocalRandom.current().longs().limit(ThreadLocalRandom.current().nextInt(1, 10)).toArray();
         msg.Longs = ThreadLocalRandom.current().longs().limit(ThreadLocalRandom.current().nextInt(1, 10)).boxed().toArray(Long[]::new);
 
-        msg.floats = new float[] { (float) ThreadLocalRandom.current().nextDouble(), (float) ThreadLocalRandom.current().nextDouble()};
-        msg.Floats = new Float[] { (float) ThreadLocalRandom.current().nextDouble(), (float) ThreadLocalRandom.current().nextDouble()};
+        msg.floats = new float[]{(float) ThreadLocalRandom.current().nextDouble(), (float) ThreadLocalRandom.current().nextDouble()};
+        msg.Floats = new Float[]{(float) ThreadLocalRandom.current().nextDouble(), (float) ThreadLocalRandom.current().nextDouble()};
 
-        msg.Bytes = new Byte[] { (byte) ThreadLocalRandom.current().nextInt(), (byte) ThreadLocalRandom.current().nextInt()};
+        msg.Bytes = new Byte[]{(byte) ThreadLocalRandom.current().nextInt(), (byte) ThreadLocalRandom.current().nextInt()};
 
         return msg;
     }
 
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        DataMessage that = (DataMessage) o;
-
-        if (isTCP != that.isTCP) return false;
-        if (string != null ? !string.equals(that.string) : that.string != null) return false;
-        // Probably incorrect - comparing Object[] arrays with Arrays.equals
-        if (!Arrays.equals(strings, that.strings)) return false;
-        if (!Arrays.equals(ints, that.ints)) return false;
-        if (!Arrays.equals(shorts, that.shorts)) return false;
-        if (!Arrays.equals(floats, that.floats)) return false;
-        if (!Arrays.equals(bytes, that.bytes)) return false;
-        if (!Arrays.equals(booleans, that.booleans)) return false;
-        // Probably incorrect - comparing Object[] arrays with Arrays.equals
-        if (!Arrays.equals(Ints, that.Ints)) return false;
-        // Probably incorrect - comparing Object[] arrays with Arrays.equals
-        if (!Arrays.equals(Shorts, that.Shorts)) return false;
-        // Probably incorrect - comparing Object[] arrays with Arrays.equals
-        if (!Arrays.equals(Floats, that.Floats)) return false;
-        // Probably incorrect - comparing Object[] arrays with Arrays.equals
-        if (!Arrays.equals(Bytes, that.Bytes)) return false;
-        // Probably incorrect - comparing Object[] arrays with Arrays.equals
-        return Arrays.equals(Booleans, that.Booleans);
-
+    private static String randString(int length) {
+        byte[] rstring = new byte[length];
+        ThreadLocalRandom.current().nextBytes(rstring);
+        return new String(rstring, StandardCharsets.UTF_8);
     }
-
-    @Override
-    public int hashCode() {
-        int result = string != null ? string.hashCode() : 0;
-        result = 31 * result + Arrays.hashCode(strings);
-        result = 31 * result + Arrays.hashCode(ints);
-        result = 31 * result + Arrays.hashCode(shorts);
-        result = 31 * result + Arrays.hashCode(floats);
-        result = 31 * result + Arrays.hashCode(bytes);
-        result = 31 * result + Arrays.hashCode(booleans);
-        result = 31 * result + Arrays.hashCode(Ints);
-        result = 31 * result + Arrays.hashCode(Shorts);
-        result = 31 * result + Arrays.hashCode(Floats);
-        result = 31 * result + Arrays.hashCode(Bytes);
-        result = 31 * result + Arrays.hashCode(Booleans);
-        result = 31 * result + (isTCP ? 1 : 0);
-        return result;
-    }
-
-    public String toString() {
-        return "Data";
-    }
-
-
-
-    private static <T> void registerArray(Kryo kryo, Class<T> tag){
-        kryo.register(tag, new DefaultArraySerializers.ObjectArraySerializer(kryo, tag));
-    }
-
 
     public static void reg(Kryo... kryos) {
-        for(Kryo kryo : kryos){
+        for (Kryo kryo : kryos) {
             kryo.register(Integer.class);
             kryo.register(Byte.class);
             kryo.register(Short.class);
@@ -176,5 +113,65 @@ public class DataMessage implements BidirectionalMessage {
             kryo.register(DataMessage.class);
         }
 
+    }
+
+    private static <T> void registerArray(Kryo kryo, Class<T> tag) {
+        kryo.register(tag, new DefaultArraySerializers.ObjectArraySerializer(kryo, tag));
+    }
+
+    @Override
+    public int hashCode() {
+        int result = string != null ? string.hashCode() : 0;
+        result = 31 * result + Arrays.hashCode(strings);
+        result = 31 * result + Arrays.hashCode(ints);
+        result = 31 * result + Arrays.hashCode(shorts);
+        result = 31 * result + Arrays.hashCode(floats);
+        result = 31 * result + Arrays.hashCode(bytes);
+        result = 31 * result + Arrays.hashCode(booleans);
+        result = 31 * result + Arrays.hashCode(Ints);
+        result = 31 * result + Arrays.hashCode(Shorts);
+        result = 31 * result + Arrays.hashCode(Floats);
+        result = 31 * result + Arrays.hashCode(Bytes);
+        result = 31 * result + Arrays.hashCode(Booleans);
+        result = 31 * result + (isTCP ? 1 : 0);
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        DataMessage that = (DataMessage) o;
+
+        if (isTCP != that.isTCP) return false;
+        if (string != null ? !string.equals(that.string) : that.string != null) return false;
+        // Probably incorrect - comparing Object[] arrays with Arrays.equals
+        if (!Arrays.equals(strings, that.strings)) return false;
+        if (!Arrays.equals(ints, that.ints)) return false;
+        if (!Arrays.equals(shorts, that.shorts)) return false;
+        if (!Arrays.equals(floats, that.floats)) return false;
+        if (!Arrays.equals(bytes, that.bytes)) return false;
+        if (!Arrays.equals(booleans, that.booleans)) return false;
+        // Probably incorrect - comparing Object[] arrays with Arrays.equals
+        if (!Arrays.equals(Ints, that.Ints)) return false;
+        // Probably incorrect - comparing Object[] arrays with Arrays.equals
+        if (!Arrays.equals(Shorts, that.Shorts)) return false;
+        // Probably incorrect - comparing Object[] arrays with Arrays.equals
+        if (!Arrays.equals(Floats, that.Floats)) return false;
+        // Probably incorrect - comparing Object[] arrays with Arrays.equals
+        if (!Arrays.equals(Bytes, that.Bytes)) return false;
+        // Probably incorrect - comparing Object[] arrays with Arrays.equals
+        return Arrays.equals(Booleans, that.Booleans);
+
+    }
+
+    public String toString() {
+        try {
+            return new ObjectMapper().writeValueAsString(this);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+            return "ERROR";
+        }
     }
 }

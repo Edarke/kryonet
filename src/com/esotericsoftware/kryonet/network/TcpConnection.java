@@ -147,10 +147,10 @@ class TcpConnection {
 		if (currentObjectLength == 0) {
 
 			// Read the length of the next object from the socket.
-			if(!fillReadBuffer(serialization.getLengthLength())){
+			if(!fillReadBuffer(4)){
 				return null;
 			}
-			currentObjectLength = serialization.readLength(readBuffer);
+			currentObjectLength = readBuffer.getInt();
 
 			if (currentObjectLength <= 0) throw new KryoNetException("Invalid object length: " + currentObjectLength);
 			if (currentObjectLength > readBuffer.capacity())
@@ -219,7 +219,7 @@ class TcpConnection {
 		synchronized (writeLock) {
 			// Leave room for length.
 			int start = writeBuffer.position();
-			int lengthLength = serialization.getLengthLength();
+			int lengthLength = 4;
 			writeBuffer.position(writeBuffer.position() + lengthLength);
 
 			// Write data.
@@ -232,7 +232,7 @@ class TcpConnection {
 
 			// Write data length.
 			writeBuffer.position(start);
-			serialization.writeLength(writeBuffer, end - lengthLength - start);
+			writeBuffer.putInt(end - lengthLength - start);
 			writeBuffer.position(end);
 
 			// Write to socket if no data was queued.
@@ -267,7 +267,7 @@ class TcpConnection {
 		synchronized (writeLock) {
 			// Leave room for length.
 			int start = writeBuffer.position();
-			int lengthLength = serialization.getLengthLength();
+			int lengthLength = 4;
 			writeBuffer.position(writeBuffer.position() + lengthLength);
 
 			// Write data.
@@ -280,9 +280,8 @@ class TcpConnection {
 			int end = writeBuffer.position();
 
 			// Write data length.
-			writeBuffer.position(start);
-			serialization.writeLength(writeBuffer, end - lengthLength - start);
-			writeBuffer.position(end);
+			writeBuffer.putInt(start, end - lengthLength - start);
+
 
 			// Write to socket if no data was queued.
 			if (start == 0 && !writeToSocket()) {

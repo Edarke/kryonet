@@ -27,7 +27,7 @@ public class PingQueryTest extends KryoNetTestCase {
             public void onConnected(ClientConnection con){
                 for(int i = 0; i < NUM_MSG; ++i) {
                     long start = System.nanoTime();
-                    con.sendAsync(new PingQuery(), time -> logPing(time, start));
+                    con.sendAsync(new PingQuery()).thenAccept(time -> logPing(time, start));
                 }
             }
         };

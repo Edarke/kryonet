@@ -1,9 +1,9 @@
 package com.esotericsoftware.kryonet.serializers;
 
-import com.esotericsoftware.kryo.KryoException;
+import com.esotericsoftware.kryo.io.ByteBufferInput;
 import com.esotericsoftware.kryo.io.ByteBufferInputStream;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 import com.esotericsoftware.kryo.io.ByteBufferOutputStream;
-import com.esotericsoftware.kryonet.util.KryoNetException;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -12,9 +12,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
 
 /**
@@ -26,9 +24,9 @@ public class JacksonSerialization implements Serialization {
 
     private final ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream();
     private final ByteBufferOutputStream byteBufferOutputStream = new ByteBufferOutputStream();
-    private final OutputStreamWriter writer = new OutputStreamWriter(byteBufferOutputStream);
 
-    private final Wrapper wrapper = new Wrapper();
+    private final ByteBufferInput input;
+    private final ByteBufferOutput output;
 
 
     /**Constructs an serialization with an ObjectMapper that has the following properties:
@@ -42,6 +40,8 @@ public class JacksonSerialization implements Serialization {
 
     public JacksonSerialization(ObjectMapper objectMapper){
         mapper = objectMapper;
+        input = new ByteBufferInput();
+        output = new ByteBufferOutput();
     }
 
 
@@ -55,51 +55,31 @@ public class JacksonSerialization implements Serialization {
                 .configure(JsonGenerator.Feature.AUTO_CLOSE_TARGET, false)
                 .disable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
                 .setSerializationInclusion(JsonInclude.Include.NON_NULL);
-
     }
 
 
     @Override
-    public void write(ByteBuffer buffer, Object object) {
-        byteBufferOutputStream.setByteBuffer(buffer);
+    public synchronized void write (ByteBuffer buffer, Object object) {
+        output.setBuffer(buffer);
         try {
-            synchronized (Wrapper.class) {
-                wrapper.message = object;
-                mapper.writeValue(System.out, wrapper);
-                mapper.writeValue(writer, wrapper);
-            }
-            writer.flush();
-        } catch (Exception ex) {
-            throw new KryoException("Error writing object: " + object, ex);
-        }
-    }
-
-    @Override
-    public Object read(ByteBuffer buffer) {
-        byteBufferInputStream.setByteBuffer(buffer);
-        try {
-            synchronized (Wrapper.class) {
-                return mapper.readValue(byteBufferInputStream, Wrapper.class).message;
-            }
+            Wrapper wrapper = new Wrapper();
+            wrapper.message = object;
+            mapper.writeValue(output, wrapper);
         } catch (IOException e) {
-            throw new KryoNetException("Error unmarshalling json object", e);
+            e.printStackTrace();
         }
+        output.flush();
     }
 
     @Override
-    public int getLengthLength() {
-        return 4;
-    }
-
-
-    @Override
-    public void writeLength (ByteBuffer buffer, int length) {
-        buffer.putInt(length);
-    }
-
-    @Override
-    public int readLength (ByteBuffer buffer) {
-        return buffer.getInt();
+    public synchronized Object read (ByteBuffer buffer) {
+        input.setBuffer(buffer);
+        try {
+            return mapper.readValue(input, Wrapper.class).message;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
 

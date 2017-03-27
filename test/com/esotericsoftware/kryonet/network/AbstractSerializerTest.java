@@ -58,7 +58,8 @@ public abstract class AbstractSerializerTest<T extends Serialization> extends Kr
             @Override
             public void onConnected(ClientConnection connection) {
                 try {
-                    connection.sendTCP(dataTCP);
+                    int size = connection.sendTCP(dataTCP);
+                    System.err.println("dataTCP size is " + size + " bytes");
                     connection.sendUDP(dataUDP); // Note UDP ping pong stops if a UDP packet is lost.
                 } catch (Exception e) {
                     test.fail(e);
@@ -124,6 +125,7 @@ public abstract class AbstractSerializerTest<T extends Serialization> extends Kr
 
     public void testQuery() throws IOException, TimeoutException {
         final Server server = new Server(16384 * 2, 8192 * 2, serializer);
+        final Client client = new Client(16384 * 2, 8192 * 2, serializer);
 
         Log.TRACE();
         startEndPoint(server);
@@ -132,9 +134,13 @@ public abstract class AbstractSerializerTest<T extends Serialization> extends Kr
             @Override
             public void onConnected(ClientConnection connection) {
                 try {
-                    connection.sendAsync(new YesNoQuery(), result -> {
+                    connection.sendAsync(new YesNoQuery()).thenAccept(result -> {
                         if (result)
                             test.resume();
+                        Log.error("Server received reply " + result);
+                    }).exceptionally(e -> {
+                        test.fail(e);
+                        return null;
                     });
                 } catch (Exception e) {
                     test.fail(e);
@@ -142,12 +148,13 @@ public abstract class AbstractSerializerTest<T extends Serialization> extends Kr
             }
         });
 
-        final Client client = new Client(16384 * 2, 8192 * 2, serializer);
         startEndPoint(client);
         client.addListener(new ConnectionAdapter<ServerConnection>() {
             @Override
             public void received(ServerConnection connection, Object object) {
                 try {
+                    Log.error("Client received " + object);
+
                     if (object instanceof YesNoQuery) {
                         ((YesNoQuery) object).reply(true);
                         connection.send(new PingTest.Ping2());

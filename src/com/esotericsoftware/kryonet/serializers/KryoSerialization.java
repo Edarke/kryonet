@@ -70,18 +70,4 @@ public class KryoSerialization implements Serialization {
 		return kryo.readClassAndObject(input);
 	}
 
-	@Override
-	public void writeLength (ByteBuffer buffer, int length) {
-		buffer.putInt(length);
-	}
-
-	@Override
-	public int readLength (ByteBuffer buffer) {
-		return buffer.getInt();
-	}
-
-	@Override
-	public int getLengthLength () {
-		return 4;
-	}
 }

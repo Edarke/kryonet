@@ -25,6 +25,7 @@ public class KryoTest extends AbstractSerializerTest<KryoSerialization> {
     }
 
 
+    @Override
     protected void register(){
         final Kryo kryo = serializer.getKryo();
 

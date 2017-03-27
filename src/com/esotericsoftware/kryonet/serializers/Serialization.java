@@ -28,11 +28,4 @@ public interface Serialization {
 
 	Object read(ByteBuffer buffer);
 
-	/** The fixed number of bytes that will be written by {@link #writeLength(ByteBuffer, int)} and read by
-	 * {@link #readLength(ByteBuffer)}. */
-	int getLengthLength();
-
-	void writeLength(ByteBuffer buffer, int length);
-
-	int readLength(ByteBuffer buffer);
 }
