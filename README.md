@@ -10,6 +10,7 @@ Key changes from KryoNet
 - Adds support for 'queries' -- Messages that expect a reply.
 - Supports registering callbacks for message types. O(1) dispatch without use of instanceof
 - Uses Jackson for json serialization rather than jsonbeans.
+- Supports compressed message length prefix. (Saves two bytes/message with default config)
 - Requires all message types to implement MessageToServer or MessageToClient
 - Uses ConcurrentUnit for unit tests which catch many failures that are ignored in KryoNet
 - Removes support for RMI
