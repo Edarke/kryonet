@@ -22,7 +22,6 @@ package com.esotericsoftware.kryonet.network;
 import com.esotericsoftware.kryonet.serializers.Serialization;
 import com.esotericsoftware.kryonet.util.KryoNetException;
 import com.esotericsoftware.kryonet.util.ProtocolUtils;
-
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketAddress;
@@ -32,11 +31,15 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 
-import static com.esotericsoftware.minlog.Log.*;
+import static com.esotericsoftware.minlog.Log.DEBUG;
+import static com.esotericsoftware.minlog.Log.TRACE;
+import static com.esotericsoftware.minlog.Log.debug;
+import static com.esotericsoftware.minlog.Log.trace;
 
 /** @author Nathan Sweet <misc@n4te.com> */
 class TcpConnection {
-	static private final int IPTOS_LOWDELAY = 0x10;
+
+	private static final int IPTOS_LOWDELAY = 0x10;
 	private static final String TAG = "Kryonet";
 
 	SocketChannel socketChannel;
@@ -50,13 +53,24 @@ class TcpConnection {
 	private SelectionKey selectionKey;
 	private volatile long lastWriteTime, lastReadTime;
 	private int currentObjectLength;
+
 	private final Object writeLock = new Object();
+	private final int lengthLength;
 
 	public TcpConnection (Serialization serialization, int writeBufferSize, int objectBufferSize) {
 		this.serialization = serialization;
-		writeBuffer = ByteBuffer.allocate(writeBufferSize);
-		readBuffer = ByteBuffer.allocate(objectBufferSize);
+		writeBuffer = ByteBuffer.allocateDirect(writeBufferSize);
+		readBuffer = ByteBuffer.allocateDirect(objectBufferSize);
 		readBuffer.flip();
+		if (writeBufferSize <= Byte.MAX_VALUE) {
+			lengthLength = 1;
+		} else if (writeBufferSize <= Short.MAX_VALUE) {
+			lengthLength = 2;
+		} else if (writeBufferSize < 0x01_00_00_00) {
+			lengthLength = 3;
+		} else {
+			lengthLength = 4;
+		}
 	}
 
 	public SelectionKey accept (Selector selector, SocketChannel socketChannel) throws IOException {
@@ -131,8 +145,7 @@ class TcpConnection {
 			if (bytesRead == -1) throw new SocketException("Connection is closed.");
 			lastReadTime = System.currentTimeMillis();
 
-			if (buffer.remaining() < length)
-				return false;
+			return buffer.remaining() >= length;
 		}
 		return true;
 	}
@@ -147,10 +160,10 @@ class TcpConnection {
 		if (currentObjectLength == 0) {
 
 			// Read the length of the next object from the socket.
-			if(!fillReadBuffer(4)){
+			if(!fillReadBuffer(lengthLength)){
 				return null;
 			}
-			currentObjectLength = readBuffer.getInt();
+			currentObjectLength = ProtocolUtils.readInt(readBuffer, lengthLength);
 
 			if (currentObjectLength <= 0) throw new KryoNetException("Invalid object length: " + currentObjectLength);
 			if (currentObjectLength > readBuffer.capacity())
@@ -169,19 +182,19 @@ class TcpConnection {
 		final int oldLimit = readBuffer.limit();
 		readBuffer.limit(startPosition + length);
 
-		final Object object;
+
 		try {
-			object = serialization.read(readBuffer);
+			final Object object = serialization.read(readBuffer);
+			readBuffer.limit(oldLimit);
+			if (readBuffer.position() - startPosition != length) {
+				throw new KryoNetException("Incorrect number of bytes (" + (startPosition + length - readBuffer.position())
+						+ " remaining) used to deserialize object: " + object);
+			}
+
+			return object;
 		} catch (Exception ex) {
 			throw new KryoNetException("Error during deserialization.", ex);
 		}
-
-		readBuffer.limit(oldLimit);
-		if (readBuffer.position() - startPosition != length)
-			throw new KryoNetException("Incorrect number of bytes (" + (startPosition + length - readBuffer.position())
-				+ " remaining) used to deserialize object: " + object);
-
-		return object;
 	}
 
 	public void writeOperation () throws IOException {
@@ -214,13 +227,13 @@ class TcpConnection {
 
 	/** This method is thread safe. */
 	public int send (Object object) throws IOException {
-		SocketChannel socketChannel = this.socketChannel;
+		final SocketChannel socketChannel = this.socketChannel;
 		if (socketChannel == null) throw new SocketException("Connection is closed.");
 		synchronized (writeLock) {
 			// Leave room for length.
-			int start = writeBuffer.position();
-			int lengthLength = 4;
-			writeBuffer.position(writeBuffer.position() + lengthLength);
+			final int start = writeBuffer.position();
+			final int objectOffset = start + lengthLength;
+			writeBuffer.position(objectOffset);
 
 			// Write data.
 			try {
@@ -228,82 +241,53 @@ class TcpConnection {
 			} catch (KryoNetException ex) {
 				throw new KryoNetException("Error serializing object of type: " + object.getClass().getName(), ex);
 			}
-			int end = writeBuffer.position();
-
+			final int end = writeBuffer.position();
 			// Write data length.
-			writeBuffer.position(start);
-			writeBuffer.putInt(end - lengthLength - start);
-			writeBuffer.position(end);
+			ProtocolUtils.writeInt(writeBuffer, end - objectOffset, lengthLength, start);
 
-			// Write to socket if no data was queued.
-			if (start == 0 && !writeToSocket()) {
-				// A partial write, set OP_WRITE to be notified when more writing can occur.
-				selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-			} else {
-				// Full write, wake up selector so onIdle event will be fired.
-				selectionKey.selector().wakeup();
-			}
-
-			if (DEBUG || TRACE) {
-				checkBufferCapacity();
-			}
-
-			lastWriteTime = System.currentTimeMillis();
+			postWrite(start);
 			return end - start;
 		}
 	}
-
-
-
-
-
-
 
 
 	/** This method is thread safe. */
-	public int sendRaw (ByteBuffer raw) throws IOException {
-		SocketChannel socketChannel = this.socketChannel;
+	public int sendRaw (ByteBuffer buffer, int length) throws IOException {
 		if (socketChannel == null) throw new SocketException("Connection is closed.");
+		final int size = length + lengthLength;
+
 		synchronized (writeLock) {
-			// Leave room for length.
-			int start = writeBuffer.position();
-			int lengthLength = 4;
-			writeBuffer.position(writeBuffer.position() + lengthLength);
+			final int start = writeBuffer.position();
 
 			// Write data.
 			try {
-				writeBuffer.put(raw);
-				raw.rewind();
+				ProtocolUtils.writeInt(writeBuffer, length, lengthLength);
+				writeBuffer.put(buffer);
+				postWrite(start);
+				return size;
 			} catch (KryoNetException ex) {
 				throw new KryoNetException("Error serializing broadcast message", ex);
 			}
-			int end = writeBuffer.position();
-
-			// Write data length.
-			writeBuffer.putInt(start, end - lengthLength - start);
-
-
-			// Write to socket if no data was queued.
-			if (start == 0 && !writeToSocket()) {
-				// A partial write, set OP_WRITE to be notified when more writing can occur.
-				selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
-			} else {
-				// Full write, wake up selector so onIdle event will be fired.
-				selectionKey.selector().wakeup();
-			}
-
-			if (DEBUG || TRACE) {
-				checkBufferCapacity();
-			}
-
-			lastWriteTime = System.currentTimeMillis();
-			return end - start;
 		}
-
-
 	}
 
 
+	private void postWrite(int start) throws IOException {
+		// Write to socket if no data was queued.
+		if (start == 0 && !writeToSocket()) {
+			// A partial write, set OP_WRITE to be notified when more writing can occur.
+			selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
+		} else {
+			// Full write, wake up selector so onIdle event will be fired.
+			selectionKey.selector().wakeup();
+		}
+
+		if (DEBUG || TRACE) {
+			checkBufferCapacity();
+		}
+
+		lastWriteTime = System.currentTimeMillis();
+	}
 
 
 
@@ -314,8 +298,6 @@ class TcpConnection {
 		else if (TRACE && percentage > 0.25f)
 			trace(TAG, "TCP write buffer utilization: " + percentage + "%");
 	}
-
-
 
 
 

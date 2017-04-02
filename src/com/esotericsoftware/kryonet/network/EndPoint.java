@@ -54,14 +54,15 @@ public abstract class EndPoint<FM extends Message, C extends Connection<FM>> imp
 
 	protected final Serialization serializer;
 
-	protected final int writeBufferSize;
+	protected final int writeBufferSize, objectBufferSize;
 
 
 
-	protected EndPoint(Serialization serializer, int writeBufferSize){
+	protected EndPoint(Serialization serializer, int writeBufferSize, int objectBufferSize){
 		this.serializer = serializer;
 		this.writeBufferSize = writeBufferSize;
-		this.cachedMessageFactory = new CachedMessageFactory(serializer, writeBufferSize);
+		this.objectBufferSize = objectBufferSize;
+		this.cachedMessageFactory = new CachedMessageFactory(serializer, objectBufferSize);
 	}
 
 

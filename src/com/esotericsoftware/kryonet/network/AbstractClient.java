@@ -93,7 +93,7 @@ public abstract class AbstractClient<T extends ServerConnection> extends EndPoin
 	}
 
 	protected AbstractClient(T connection, int writeBufferSize, int objectBufferSize, Serialization serialization) {
-		super(serialization, writeBufferSize);
+		super(serialization, writeBufferSize, objectBufferSize);
 		this.connection = connection;
 		connection.endPoint = this;
 
@@ -544,6 +544,8 @@ public abstract class AbstractClient<T extends ServerConnection> extends EndPoin
 		dataBuffer.flip();
 		byte[] data = new byte[dataBuffer.limit()];
 		dataBuffer.get(data);
+
+
 		for (NetworkInterface iface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
 			for (InetAddress address : Collections.list(iface.getInetAddresses())) {
 				// Java 1.5 doesn't support getting the subnet mask, so try the two most common.
@@ -649,7 +651,7 @@ public abstract class AbstractClient<T extends ServerConnection> extends EndPoin
 	}
 
 	public int send(CachedMessage<? extends MessageToServer> msg){
-		if(msg.isReliable()){
+		if(msg.isReliable){
 			return sendTCP(msg);
 		} else {
 			return sendUDP(msg);

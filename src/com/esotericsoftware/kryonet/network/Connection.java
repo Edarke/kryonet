@@ -46,11 +46,9 @@ import java.util.concurrent.ExecutionException;
 import org.eclipse.jdt.annotation.Nullable;
 
 import static com.esotericsoftware.minlog.Log.DEBUG;
-import static com.esotericsoftware.minlog.Log.ERROR;
 import static com.esotericsoftware.minlog.Log.INFO;
 import static com.esotericsoftware.minlog.Log.TRACE;
 import static com.esotericsoftware.minlog.Log.debug;
-import static com.esotericsoftware.minlog.Log.error;
 import static com.esotericsoftware.minlog.Log.info;
 import static com.esotericsoftware.minlog.Log.trace;
 
@@ -127,20 +125,26 @@ public class Connection<MSG extends Message> {
     }
 
     public int send(CachedMessage<? extends MSG> msg) {
-        if (msg.isReliable()) {
-            return sendBytesTCP(msg.cached);
+        final int length = msg.length;
+        ByteBuffer buffer = ByteBuffer.wrap(msg.cached, msg.start, length);
+        if (msg.isReliable) {
+            sendBytesTCP(buffer, length);
         } else {
-            return sendBytesUDP(msg.cached);
+            sendBytesUDP(buffer);
         }
+        return length;
     }
 
     public int sendTCP(CachedMessage<? extends MSG> msg) {
-        return sendBytesTCP(msg.cached);
+        final int length = msg.length;
+        ByteBuffer raw = ByteBuffer.wrap(msg.cached, msg.start, msg.length);
+        sendBytesTCP(raw, length);
+        return length;
     }
 
-    int sendBytesTCP(ByteBuffer raw) {
+    int sendBytesTCP(ByteBuffer buffer, int length) {
         try {
-            return tcp.sendRaw(raw);
+            return tcp.sendRaw(buffer, length);
         } catch (IOException e) {
             if (DEBUG) debug("kryonet", "Unable to sendRaw TCP with connection: " + this, e);
             close();
@@ -166,10 +170,11 @@ public class Connection<MSG extends Message> {
     }
 
     public int sendUDP(CachedMessage<? extends MSG> msg) {
-        return sendBytesUDP(msg.cached);
+        sendBytesUDP(ByteBuffer.wrap(msg.cached, msg.start, msg.length));
+        return msg.length;
     }
 
-    int sendBytesUDP(ByteBuffer raw) {
+    void sendBytesUDP(ByteBuffer raw) {
         SocketAddress address = udpRemoteAddress;
         if (address == null && udp != null) address = udp.connectedAddress;
         if (address == null && isConnected) throw new IllegalStateException("Connection is not onConnected via UDP.");
@@ -177,15 +182,10 @@ public class Connection<MSG extends Message> {
         try {
             if (address == null)
                 throw new SocketException("Connection is closed.");
-            return udp.sendRaw(raw, address);
+            udp.sendRaw(raw, address);
         } catch (IOException ex) {
             if (DEBUG) debug("kryonet", "Unable to sendRaw UDP with connection: " + this, ex);
             close();
-            return 0;
-        } catch (KryoNetException ex) {
-            if (ERROR) error("kryonet", "Unable to sendRaw UDP with connection: " + this, ex);
-            close();
-            return 0;
         }
     }
 
@@ -203,9 +203,9 @@ public class Connection<MSG extends Message> {
      */
     public int send(MSG msg) {
         if (msg.isReliable())
-            return sendTCP(msg);
+            return sendObjectTCP(msg);
         else
-            return sendUDP(msg);
+            return sendObjectUDP(msg);
     }
 
     /**
@@ -273,11 +273,10 @@ public class Connection<MSG extends Message> {
     }
 
     protected int sendObjectTCP(Object object) {
-        Log.info("Sending TCP " + object);
-        Objects.requireNonNull(object, "Cannot send null object.");
+        if (object == null) throw new IllegalArgumentException("object cannot be null.");
 
         try {
-            int length = tcp.send(object);
+            final int length = tcp.send(object);
             if (length == 0) {
                 if (TRACE) trace("kryonet", this + " TCP had nothing to send.");
             } else if (DEBUG) {

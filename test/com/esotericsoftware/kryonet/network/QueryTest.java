@@ -57,6 +57,10 @@ public class QueryTest extends KryoNetTestCase {
         client.addListener(listener);
         startEndPoint(client);
         client.connect(2000, "localhost", tcp, udp);
+
+        while(clientRef == null){
+            sleep(15);
+        }
     }
 
 

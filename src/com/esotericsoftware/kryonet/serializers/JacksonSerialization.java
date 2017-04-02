@@ -1,9 +1,8 @@
 package com.esotericsoftware.kryonet.serializers;
 
 import com.esotericsoftware.kryo.io.ByteBufferInput;
-import com.esotericsoftware.kryo.io.ByteBufferInputStream;
 import com.esotericsoftware.kryo.io.ByteBufferOutput;
-import com.esotericsoftware.kryo.io.ByteBufferOutputStream;
+import com.esotericsoftware.kryonet.util.KryoNetException;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -21,14 +20,6 @@ import java.nio.ByteBuffer;
 public class JacksonSerialization implements Serialization {
     private final ObjectMapper mapper;
 
-
-    private final ByteBufferInputStream byteBufferInputStream = new ByteBufferInputStream();
-    private final ByteBufferOutputStream byteBufferOutputStream = new ByteBufferOutputStream();
-
-    private final ByteBufferInput input;
-    private final ByteBufferOutput output;
-
-
     /**Constructs an serialization with an ObjectMapper that has the following properties:
      PropertyAccessor.FIELD  PUBLIC_ONLY
      FAIL_ON_UNKNOWN_PROPERTIES:    false
@@ -40,8 +31,6 @@ public class JacksonSerialization implements Serialization {
 
     public JacksonSerialization(ObjectMapper objectMapper){
         mapper = objectMapper;
-        input = new ByteBufferInput();
-        output = new ByteBufferOutput();
     }
 
 
@@ -58,27 +47,35 @@ public class JacksonSerialization implements Serialization {
     }
 
 
+    /** Returns the object mapper for this serialization instance.
+     * Changing the configuration of the mapper is not thread safe, so any changes must be
+     * done prior to starting the endpoint.*/
+    public ObjectMapper getMapper(){
+        return mapper;
+    }
+
     @Override
-    public synchronized void write (ByteBuffer buffer, Object object) {
-        output.setBuffer(buffer);
+    public void write (ByteBuffer buffer, Object object) {
         try {
+            output.setBuffer(buffer);
             Wrapper wrapper = new Wrapper();
             wrapper.message = object;
             mapper.writeValue(output, wrapper);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        output.flush();
     }
 
+    private final ByteBufferInput input = new ByteBufferInput();
+    private final ByteBufferOutput output = new ByteBufferOutput();
+
     @Override
-    public synchronized Object read (ByteBuffer buffer) {
-        input.setBuffer(buffer);
+    public Object read (ByteBuffer buffer) {
         try {
+            input.setBuffer(buffer);
             return mapper.readValue(input, Wrapper.class).message;
         } catch (IOException e) {
-            e.printStackTrace();
-            return null;
+            throw new KryoNetException("Jackson unable to deserialize message", e);
         }
     }
 

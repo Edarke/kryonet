@@ -36,7 +36,12 @@ public class QueryTimeOut extends KryoNetTestCase {
         server.bind(tcp, udp);
 
 
-        RegisteredServerListener serverListener = new RegisteredServerListener();
+        RegisteredServerListener serverListener = new RegisteredServerListener(){
+            @Override
+            public void onConnected(ClientConnection c) {
+                System.err.println("Got connection!");
+            }
+        };
         serverListener.addQueryHandle(ShortQuery.class, (query, con) -> {
             Log.info("Server Received " + query);
             sleep(10);
@@ -50,6 +55,9 @@ public class QueryTimeOut extends KryoNetTestCase {
         client.addListener(listener);
         startEndPoint(client);
         client.connect(2000, "localhost", tcp, udp);
+        while(clientRef == null) {
+            sleep(20);
+        }
     }
 
 
@@ -96,6 +104,7 @@ public class QueryTimeOut extends KryoNetTestCase {
 
     @Test
     public void testQueryFutureCompletion() throws ExecutionException, InterruptedException {
+        System.err.println(clientRef);
         assertNotNull(clientRef);
         ShortQuery query = new ShortQuery();
         query.timeout = Duration.ofMinutes(10);

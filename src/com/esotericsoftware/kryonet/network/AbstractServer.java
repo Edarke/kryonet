@@ -62,13 +62,13 @@ import static com.esotericsoftware.minlog.Log.warn;
  */
 public abstract class AbstractServer<T extends ClientConnection> extends EndPoint<MessageToClient, T> {
 
-    private final int objectBufferSize;
     private final IntMap<T> pendingConnections = new IntMap<>();
     private final List<T> connections = new CopyOnWriteArrayList<>();
     private final Class<T> classTag;
     private final Listener<Connection> dispatchListener = new Listener<Connection>() {
 
         public void onConnected(Connection conn) {
+            System.err.println("Dispatch listener got connection!");
             conn.notifyConnected();
 
             final T connection = classTag.cast(conn);
@@ -137,8 +137,7 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
     }
 
     public AbstractServer(Class<T> tag, int writeBufferSize, int objectBufferSize, Serialization serialization) {
-        super(serialization, writeBufferSize);
-        this.objectBufferSize = objectBufferSize;
+        super(serialization, writeBufferSize, objectBufferSize);
         this.discoveryHandler = ServerDiscoveryHandler.DEFAULT;
         this.classTag = tag;
 
@@ -212,48 +211,47 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
     }
 
     public void sendToAllTCP(MessageToClient object, Iterable<T> targets) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-        for (T target : targets) {
-            target.sendBytesTCP(raw);
-        }
+        final CachedMessage<MessageToClient> raw = cachedMessageFactory.createTemp(object);
+        sendToAllTCP(raw, targets);
     }
 
     public void sendToAllUDP(MessageToClient object, Iterable<T> targets) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-
-        for (T target : targets) {
-            target.sendBytesUDP(raw);
-        }
+        sendToAllUDP(cachedMessageFactory.createTemp(object), targets);
     }
 
-    private ByteBuffer writeToBuffer(MessageToClient msg) {
-        final ByteBuffer raw = ByteBuffer.allocate(writeBufferSize);
-        serializer.write(raw, msg);
-        raw.flip();
-        return raw;
+    public void sendToAll(CachedMessage<? extends MessageToClient> msg) {
+        sendToAll(msg, this.getConnections());
     }
 
-    public void sendToAll(CachedMessage<? extends MessageToClient> object, Iterable<T> targets) {
-        if (object.isReliable()) {
-            sendToAllTCP(object, targets);
+    public void sendToAll(CachedMessage<? extends MessageToClient> msg, Iterable<T> targets) {
+        if (msg.isReliable) {
+            sendToAllTCP(msg, targets);
         } else {
-            sendToAllUDP(object, targets);
+            sendToAllUDP(msg, targets);
         }
     }
 
     public void sendToAllTCP(CachedMessage<? extends MessageToClient> msg, Iterable<T> targets) {
-        final ByteBuffer raw = msg.cached;
+        final byte[] raw = msg.cached;
+        final int offset = msg.start;
+        final int length = msg.length;
+        ByteBuffer buffer = ByteBuffer.wrap(raw, offset, length);
+
         for (T target : targets) {
-            target.sendBytesTCP(raw);
+            target.sendBytesTCP(buffer, length);
+            buffer.position(offset);
         }
     }
 
     public void sendToAllUDP(CachedMessage<? extends MessageToClient> msg, Iterable<T> targets) {
-        final ByteBuffer raw = msg.cached;
+        final byte[] raw = msg.cached;
+        final int length = msg.length;
+        final int offset = msg.start;
+        final ByteBuffer buffer = ByteBuffer.wrap(raw, offset, length);
+
         for (T target : targets) {
-            target.sendBytesUDP(raw);
+            target.sendBytesUDP(buffer);
+            buffer.position(offset);
         }
     }
 
@@ -282,27 +280,15 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
     }
 
     public void sendToAllOthersTCP(int connectionID, MessageToClient object) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-        final List<T> connections = this.connections;
-        for (T target : connections) {
-            if (target.getID() != connectionID)
-                target.sendBytesTCP(raw);
-        }
+        sendToAllOthersTCP(connectionID, cachedMessageFactory.createTemp(object));
     }
 
     public void sendToAllOthersUDP(int connectionID, MessageToClient object) {
-        final ByteBuffer raw = writeToBuffer(object);
-
-        final List<T> connections = this.connections;
-        for (T target : connections) {
-            if (target.getID() != connectionID)
-                target.sendBytesUDP(raw);
-        }
+        sendToAllOthersUDP(connectionID, cachedMessageFactory.createTemp(object));
     }
 
     public void sendToAllOthers(int connectionID, CachedMessage<? extends MessageToClient> msg) {
-        if (msg.isReliable()) {
+        if (msg.isReliable) {
             sendToAllOthersTCP(connectionID, msg);
         } else {
             sendToAllOthersUDP(connectionID, msg);
@@ -310,18 +296,33 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
     }
 
     public void sendToAllOthersTCP(int connectionID, CachedMessage<? extends MessageToClient> msg) {
+        final byte[] buffer = msg.cached;
+        final int length = msg.length;
+        final int offset = msg.start;
+        ByteBuffer raw = ByteBuffer.wrap(buffer, offset, length);
+
         final List<T> connections = this.connections;
         for (T target : connections) {
-            if (target.getID() != connectionID)
-                target.sendBytesTCP(msg.cached);
+            if (target.getID() != connectionID) {
+                target.sendBytesTCP(raw, length);
+                raw.position(offset);
+            }
         }
     }
 
     public void sendToAllOthersUDP(int connectionID, CachedMessage<? extends MessageToClient> msg) {
+        final byte[] buffer = msg.cached;
+        final int offset = msg.start;
+        final int length = msg.length;
+        ByteBuffer raw = ByteBuffer.wrap(buffer, offset, length);
+
+
         final List<T> connections = this.connections;
         for (T target : connections) {
-            if (target.getID() != connectionID)
-                target.sendBytesUDP(msg.cached);
+            if (target.getID() != connectionID) {
+                target.sendBytesUDP(raw);
+                raw.position(offset);
+            }
         }
     }
 
@@ -657,4 +658,12 @@ public abstract class AbstractServer<T extends ClientConnection> extends EndPoin
     }
 
 
+    public void sendToOrigUDP(MessageToClient msg) {
+        for (ClientConnection c : this.connections)
+            c.sendUDP(msg);
+    }
+
+    public void sendToAll(MessageToClient msg) {
+        sendToAll(msg, this.connections);
+    }
 }

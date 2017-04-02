@@ -19,6 +19,8 @@
 
 package com.esotericsoftware.kryonet.network;
 
+import com.esotericsoftware.kryo.io.ByteBufferInput;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 import com.esotericsoftware.kryonet.serializers.Serialization;
 import com.esotericsoftware.kryonet.util.KryoNetException;
 import com.esotericsoftware.kryonet.util.ProtocolUtils;
@@ -42,11 +44,15 @@ class UdpConnection {
 	private SelectionKey selectionKey;
 	private final Object writeLock = new Object();
 	private long lastCommunicationTime;
+	private final ByteBufferOutput bufferOutput;
+	private final ByteBufferInput bufferInput;
 
 	public UdpConnection (Serialization serialization, int bufferSize) {
 		this.serialization = serialization;
 		readBuffer = ByteBuffer.allocate(bufferSize);
 		writeBuffer = ByteBuffer.allocateDirect(bufferSize);
+		bufferOutput = new ByteBufferOutput(writeBuffer);
+		bufferInput = new ByteBufferInput(readBuffer);
 	}
 
 	public void bind (Selector selector, InetSocketAddress localPort) throws IOException {
@@ -123,7 +129,7 @@ class UdpConnection {
 					throw new KryoNetException("Error serializing object of type: " + object.getClass().getName(), ex);
 				}
 				writeBuffer.flip();
-				int length = writeBuffer.limit();
+				final int length = writeBuffer.limit();
 				datagramChannel.send(writeBuffer, address);
 
 				lastCommunicationTime = System.currentTimeMillis();
@@ -141,29 +147,12 @@ class UdpConnection {
 
 
 	/** This method is thread safe. */
-	public int sendRaw(ByteBuffer raw, SocketAddress address) throws IOException {
-		DatagramChannel datagramChannel = this.datagramChannel;
+	public void sendRaw(ByteBuffer buffer, SocketAddress address) throws IOException {
+		final DatagramChannel datagramChannel = this.datagramChannel;
 		if (datagramChannel == null) throw new SocketException("Connection is closed.");
-		synchronized (writeLock) {
-			try {
-				try {
-					writeBuffer.put(raw);
-					raw.rewind();
-				} catch (Exception ex) {
-					throw new KryoNetException("Error broadcasting on udp" , ex);
-				}
-				writeBuffer.flip();
-				int length = writeBuffer.limit();
-				datagramChannel.send(writeBuffer, address);
 
-				lastCommunicationTime = System.currentTimeMillis();
-
-				boolean wasFullWrite = !writeBuffer.hasRemaining();
-				return wasFullWrite ? length : -1;
-			} finally {
-				writeBuffer.clear();
-			}
-		}
+		datagramChannel.send(buffer, address);
+		lastCommunicationTime = System.currentTimeMillis();
 	}
 
 

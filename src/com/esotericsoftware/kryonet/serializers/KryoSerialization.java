@@ -23,14 +23,17 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.ByteBufferInput;
 import com.esotericsoftware.kryo.io.ByteBufferOutput;
 import com.esotericsoftware.kryonet.network.Response;
-import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.*;
-
+import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.DiscoverHost;
+import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.KeepAlive;
+import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.Ping;
+import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.RegisterTCP;
+import com.esotericsoftware.kryonet.network.messages.FrameworkMessage.RegisterUDP;
 import java.nio.ByteBuffer;
 
 public class KryoSerialization implements Serialization {
 	private final Kryo kryo;
-	private final ByteBufferInput input;
-	private final ByteBufferOutput output;
+	private final ByteBufferInput input = new ByteBufferInput();
+	private final ByteBufferOutput output = new ByteBufferOutput();
 
 	public KryoSerialization () {
 		this(new Kryo());
@@ -40,17 +43,14 @@ public class KryoSerialization implements Serialization {
 
 	public KryoSerialization (Kryo kryo) {
 		this.kryo = kryo;
-
 		kryo.register(RegisterTCP.class);
 		kryo.register(RegisterUDP.class);
 		kryo.register(KeepAlive.class);
 		kryo.register(DiscoverHost.class);
 		kryo.register(Ping.class);
 		kryo.register(Response.class);
-
-		input = new ByteBufferInput();
-		output = new ByteBufferOutput();
 	}
+
 
 	public Kryo getKryo () {
 		return kryo;
@@ -61,8 +61,8 @@ public class KryoSerialization implements Serialization {
 	public synchronized void write (ByteBuffer buffer, Object object) {
 		output.setBuffer(buffer);
 		kryo.writeClassAndObject(output, object);
-		output.flush();
 	}
+
 
 	@Override
 	public synchronized Object read (ByteBuffer buffer) {

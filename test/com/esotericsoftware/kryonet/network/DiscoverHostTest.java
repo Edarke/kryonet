@@ -22,15 +22,9 @@ package com.esotericsoftware.kryonet.network;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryonet.adapters.ConnectionAdapter;
-import com.esotericsoftware.kryonet.network.ClientDiscoveryHandler;
-import com.esotericsoftware.kryonet.network.ServerDiscoveryHandler;
 import com.esotericsoftware.kryonet.network.impl.Client;
 import com.esotericsoftware.kryonet.network.impl.Server;
-import com.esotericsoftware.kryonet.network.ClientConnection;
-import com.esotericsoftware.kryonet.network.Connection;
 import com.esotericsoftware.kryonet.serializers.Serialization;
-import com.esotericsoftware.kryonet.network.KryoNetTestCase;
-
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;

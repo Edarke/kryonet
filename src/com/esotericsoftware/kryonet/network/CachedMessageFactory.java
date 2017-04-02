@@ -2,7 +2,6 @@ package com.esotericsoftware.kryonet.network;
 
 import com.esotericsoftware.kryonet.network.messages.Message;
 import com.esotericsoftware.kryonet.serializers.Serialization;
-
 import java.nio.ByteBuffer;
 
 /**
@@ -10,6 +9,8 @@ import java.nio.ByteBuffer;
  */
 public class CachedMessageFactory {
 
+    byte[] buffer;
+    private int free;
     private final Serialization serializer;
     private final int maxBufferSize;
 
@@ -17,34 +18,45 @@ public class CachedMessageFactory {
     CachedMessageFactory(Serialization serializer, int maxBufferSize){
         this.serializer = serializer;
         this.maxBufferSize = maxBufferSize;
+
+        // This buffer can hold at least 8 pre-serialized messages, but it likely can hold many, many more.
+        this.buffer = new byte[maxBufferSize * 8];
     }
 
-    /** Create a pre-serialized form of a message in a type safe wrapper.
-     * Any time you want to send a message of type T, you can send a CachedMessage<T>
-     * without the overhead of serialization.
-     *
-     * This method is similar to {@link #create(Message)} but creates a minimally sized buffer at the cost of
-     * extra computational cost. This method may be more appropriate than {@link #create(Message)} for long lived objects
-     * created when the server starts.*/
-    public <T extends Message> CachedMessage<T> createMinimal(T msg){
-        ByteBuffer buffer = ByteBuffer.allocate(maxBufferSize);
-        buffer.clear();
-        serializer.write(buffer, msg);
-        ByteBuffer cache = ByteBuffer.allocate(buffer.position()+1);
+    <T extends Message> CachedMessage<T> createTemp(T msg){
+        synchronized (this) {
+            final byte[] localBuffer = buffer;
+            final int offset = free;
 
-        buffer.flip();
-        cache.put(buffer);
-        cache.flip();
-        return new CachedMessage<>(cache, msg.isReliable());
+            ByteBuffer temp = ByteBuffer.wrap(localBuffer, offset, maxBufferSize);
+            serializer.write(temp, msg);
+            final int end = temp.position();
+
+            if (end + maxBufferSize >= localBuffer.length) {
+                buffer = new byte[localBuffer.length];
+                free = 0;
+            } else {
+                free = end;
+            }
+            return new CachedMessage<>(localBuffer, offset, end, msg.isReliable());
+        }
     }
 
-    /** Create a pre-serialized form of a message in a type safe wrapper.
+
+    /**
+     * Create a pre-serialized form of a message in a type safe wrapper.
      * Any time you want to send a message of type T, you can send a CachedMessage<T>
-     * without the overhead of serialization. */
+     * without the overhead of serialization. This method can be used to optimize messages
+     * that are sent frequently.
+     */
     public <T extends Message> CachedMessage<T> create(T msg){
-        ByteBuffer cache = ByteBuffer.allocate(maxBufferSize);
-        serializer.write(cache, msg);
-        cache.flip();
-        return new CachedMessage<>(cache, msg.isReliable());
+        ByteBuffer buffer = ByteBuffer.allocate(maxBufferSize);
+        serializer.write(buffer, msg);
+        buffer.flip();
+
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes, 0, bytes.length);
+
+        return new CachedMessage<T>(bytes, 0, bytes.length, msg.isReliable());
     }
 }

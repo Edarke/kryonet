@@ -25,19 +25,18 @@ import com.esotericsoftware.kryonet.network.impl.Client;
 import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.minlog.Log;
 import com.esotericsoftware.minlog.Log.Logger;
-import junit.framework.TestCase;
-import net.jodah.concurrentunit.Waiter;
-import org.hamcrest.BaseMatcher;
-import org.hamcrest.Description;
-import org.junit.After;
-import org.junit.Before;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.ThreadLocalRandom;
+import junit.framework.TestCase;
+import net.jodah.concurrentunit.Waiter;
+import org.hamcrest.BaseMatcher;
+import org.hamcrest.Description;
+import org.junit.After;
+import org.junit.Before;
 
 abstract public class KryoNetTestCase extends TestCase {
 	public static final String host = "localhost";
@@ -51,7 +50,7 @@ abstract public class KryoNetTestCase extends TestCase {
 
 	protected Client client = new Client(Short.MAX_VALUE, Short.MAX_VALUE);
 
-	protected ClientConnection clientRef;
+	protected volatile ClientConnection clientRef;
 
 
 
@@ -93,12 +92,13 @@ abstract public class KryoNetTestCase extends TestCase {
 	@Before
 	@Override
 	protected void setUp () throws Exception {
-		System.out.println("---- " + getClass().getSimpleName());
+		System.err.println("---- " + getClass().getSimpleName());
 		timer = new Timer();
 
 		server.addListener(new ConnectionAdapter<ClientConnection>() {
 			@Override
 			public void onConnected(ClientConnection connection) {
+				System.err.println("initializing clientref");
 				clientRef = connection;
 			}
 		});

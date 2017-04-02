@@ -77,14 +77,17 @@
 
     </build>
 
+    <repositories>
+        <repository>
+            <id>clojars</id>
+            <url>http://clojars.org/repo/</url>
+        </repository>
+    </repositories>
+
+
+
+
     <dependencies>
-
-        <dependency>
-            <groupId>com.esotericsoftware</groupId>
-            <artifactId>kryo</artifactId>
-            <version>3.0.3</version>
-        </dependency>
-
 
         <!-- http://mvnrepository.com/artifact/com.fasterxml.jackson.core/jackson-databind -->
         <dependency>
@@ -97,6 +100,22 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
             <version>2.7.4</version>
+        </dependency>
+
+
+
+        <!-- https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core -->
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-core</artifactId>
+            <version>1.18</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.openjdk.jmh</groupId>
+            <artifactId>jmh-generator-annprocess</artifactId>
+            <version>1.18</version>
+            <scope>test</scope>
         </dependency>
 
 
@@ -113,6 +132,7 @@
             <groupId>net.jodah</groupId>
             <artifactId>concurrentunit</artifactId>
             <version>0.4.2</version>
+            <scope>test</scope>
         </dependency>
 
 
@@ -123,6 +143,11 @@
             <version>2.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>com.esotericsoftware</groupId>
+            <artifactId>kryo</artifactId>
+            <version>4.0.0</version>
+        </dependency>
 
     </dependencies>
 
