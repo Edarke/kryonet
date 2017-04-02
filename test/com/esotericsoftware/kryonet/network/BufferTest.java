@@ -24,8 +24,6 @@ import com.esotericsoftware.kryonet.adapters.ConnectionAdapter;
 import com.esotericsoftware.kryonet.network.impl.Client;
 import com.esotericsoftware.kryonet.network.impl.Server;
 import com.esotericsoftware.kryonet.network.messages.BidirectionalMessage;
-
-import com.esotericsoftware.minlog.Log;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.ThreadLocalRandom;
@@ -72,7 +70,6 @@ public class BufferTest extends KryoNetTestCase {
 				}
 			}
 		});
-		Log.TRACE();
 		Client client = new Client(writeBufferSize, writeBufferSize);
 		startEndPoint(client);
 		register(client.getKryo());
