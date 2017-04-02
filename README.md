@@ -1,4 +1,5 @@
 This project is based on Nathan Sweet's [KryoNet](https://github.com/EsotericSoftware/kryonet)  
+[![Build Status](https://travis-ci.org/Edarke/kryonet.svg?branch=master)](https://travis-ci.org/Edarke/kryonet)  
 
 This project is not backwards-compatible with KryoNet, but the following guide expects you to be familiar with it. This project aims to provides higher abstraction over KryoNet with stronger type safety and better performance by reducing redundant serialization of messages.
 
@@ -100,11 +101,11 @@ Here's an example that demonstrates adding callbacks for messages and queries.
 
 	listener.addQueryHandle(LoginQuery.class, (query, connection) -> {
 		//Reply should be called once on each query to send back a result
-        if(query.username.equals("John Smith") && query.password.equals("1234")) {
-        	query.reply(LoginStatus.SUCCESS);
-        } else {
-		query.reply(LoginStatus.FAILURE);            
-        }
+		if(query.username.equals("John Smith") && query.password.equals("1234")) {
+			query.reply(LoginStatus.SUCCESS);
+		} else {
+			query.reply(LoginStatus.FAILURE);            
+		}
     });
     
     server.addListener(listener);
@@ -118,35 +119,37 @@ Queries are types of messages that are intended to invoke a reply from the other
 
 Let's say that you're developing a turn-based strategy game.
 In your game client, you probably have code that involves logging into your game server, since every request of this type will require a response, it may be appropriate to create a LoginQuery class that extends QueryToServer<T>.
-
-Doing so produces code that is really easy to reason about. Additionally, there is no need for a dependency between your packet listener and your login logic
 ```java
     public void attemptLogin(String username, String password) {
-	    LoginStatus response = server.sendAndWait(new LoginQuery(username, password)); // This call blocks until server responds.
-	    if(response == LoginStatus.SUCCESS) {
-	    	loadGame();
-	    } else {
-	    	showDialog("Username/Password combination is incorrect.")
+	    Optional<LoginStatus> response = server.sendAndWait(new LoginQuery(username, password)); // blocks until response recieved.
+	    response.ifPresent(reply -> {
+		    if(reply == LoginStatus.SUCCESS) {
+			loadGame();
+		    } else {
+			showDialog("Username/Password combination is incorrect.")
+		    }
 	    }
     }
 ```
 
 
-Queries can also be handled asynchronously with callbacks. Let's say our player is in the middle of a battle and the server needs to indicate to the client that it's time to select an option. 
+Queries can also be handled asynchronously with futures. Let's say its player1's turn to make a move, and the game server needs to indicate to the client that it's time for the user to select an option. 
 ```java
-    player.sendAsync(new RequestSelection()).thenAccept(new Consumer<Selection>(){
+    player1.sendAsync(new RequestSelection()).thenAccept(new Consumer<Selection>(){
 		@Override
 		public void accept(Selection reply){
 		   // Handle selection. This code will run in another thread. 
-		}); 
+		}
+     }); 
     
 ```
 
-Queries are defined very much like normal messages. For example, we can define RequestSelection very simply as
+It's very easy to define new query types. For example, the RequestSelect query used above would be defined as:
 ```java
 	public class RequestSelection extends QueryToClient<Selection> { }
 ```
-Default timeouts can optionally be specified per query type as follows
+
+We can optionally, specify a default timeout for this type of query by overrriding getTimeout()
 ```java
 	public class RequestSelection extends QueryToClient<Selection> {
 		@Override
@@ -155,7 +158,7 @@ Default timeouts can optionally be specified per query type as follows
 		}
 	}
 ```
-A timeout can also be specified for a specific request:
+A timeout can also be specified for individual requests:
 ```java
     player.sendAsync(new RequestSelection(), Duration.ofSeconds(100))
     	.exceptionally(timeoutError -> getDefaultSelection())
